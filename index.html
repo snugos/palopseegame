@@ -13,29 +13,40 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* justify-content: center; */ /* Adjusted for top icon */
-            padding-top: 20px; /* Space for header icon */
+            padding-top: 20px; 
             min-height: 100vh;
             margin: 0;
             color: #333; 
             overscroll-behavior-y: contain; 
             transition: background-color 0.3s ease, color 0.3s ease;
-            overflow-x: hidden; 
+            overflow: hidden; /* Prevent scrollbars from canvas edges */
+        }
+        #backgroundCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1; /* Behind all other content */
         }
         #headerLinkContainer {
             margin-bottom: 20px;
             display: flex;
             justify-content: center;
+            position: relative; /* Ensure it's above the fixed background */
+            z-index: 1;
         }
         #headerPalopseeCanvas {
-            border-radius: 4px; /* Optional: slightly rounded corners for the icon */
-            /* box-shadow: 0 2px 4px rgba(0,0,0,0.1); */ /* Optional shadow */
+            border-radius: 4px; 
+            cursor: pointer;
         }
-        canvas#gameCanvas { /* Specific to game canvas */
+        canvas#gameCanvas { 
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             touch-action: none; 
             display: block; 
+            position: relative; /* Ensure it's above the fixed background */
+            z-index: 0;
         }
         #messageBox {
             position: fixed;
@@ -64,6 +75,8 @@
 </head>
 <body>
 
+    <canvas id="backgroundCanvas"></canvas>
+
     <div id="headerLinkContainer">
         <a id="headerLink" href="#" target="_blank" rel="noopener noreferrer">
             <canvas id="headerPalopseeCanvas"></canvas>
@@ -74,11 +87,16 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        const gameCanvas = document.getElementById('gameCanvas');
+        const ctx = gameCanvas.getContext('2d');
+        const backgroundCanvas = document.getElementById('backgroundCanvas');
+        const bgCtx = backgroundCanvas.getContext('2d'); 
+
         const headerPalopseeCanvas = document.getElementById('headerPalopseeCanvas');
         const headerPalopseeCtx = headerPalopseeCanvas.getContext('2d');
         const headerLink = document.getElementById('headerLink');
+        const headerLinkContainer = document.getElementById('headerLinkContainer');
+
 
         const messageBox = document.getElementById('messageBox');
         const bodyElement = document.body;
@@ -113,7 +131,7 @@
         let currentTheme = themes.light; 
 
         // --- Customizable Link URL ---
-        let customHeaderLinkUrl = "#"; // <<<< REPLACE # WITH YOUR DESIRED URL >>>>
+        let customHeaderLinkUrl = "#"; 
         // --- End Customizable Link URL ---
 
         // --- Customizable Image URLs ---
@@ -133,7 +151,7 @@
         const alienShipTargetHeight = 24;
         const powerUpTargetWidth = 24;   
         const powerUpTargetHeight = 24;
-        const headerPalopseeTargetWidth = 40; // Size for the top icon
+        const headerPalopseeTargetWidth = 40; 
         const headerPalopseeTargetHeight = 40;
         // --- End Target Sizes ---
 
@@ -154,7 +172,7 @@
 
         let palopseeBufferCanvas = null; 
         let palopseeBufferCtx = null;
-        let headerPalopseeBufferCanvas = null; // Buffer for the header icon
+        let headerPalopseeBufferCanvas = null; 
         let headerPalopseeBufferCtx = null;
 
 
@@ -175,23 +193,23 @@
         let animationFrameId;
 
         const groundHeight = 50; 
-        let canvasWidth = 800; 
-        let canvasHeight = 300; 
-        const designAspectRatio = canvasWidth / canvasHeight;
+        let gameCanvasWidth = 800; 
+        let gameCanvasHeight = 300; 
+        const designAspectRatio = gameCanvasWidth / gameCanvasHeight;
 
         const gameFont = "'Pixelify Sans', 'Inter', sans-serif"; 
 
         // Player (Palopsee) properties
         const player = {
             x: 50,
-            y: canvasHeight - groundHeight - playerTargetHeight,
+            y: gameCanvasHeight - groundHeight - playerTargetHeight,
             width: playerTargetWidth,  
             height: playerTargetHeight, 
             dy: 0, 
             jumpStrength: 12,
             gravity: 0.7,
             isJumping: false,
-            groundY: canvasHeight - groundHeight - playerTargetHeight,
+            groundY: gameCanvasHeight - groundHeight - playerTargetHeight,
             isInvincible: false, 
             invincibilityFrames: 0, 
             draw() {
@@ -254,7 +272,7 @@
                 img = asteroidImg;
                 width = asteroidTargetWidth; 
                 height = asteroidTargetHeight; 
-                yPos = canvasHeight - groundHeight - height;
+                yPos = gameCanvasHeight - groundHeight - height;
             } else { // alienShip
                 img = alienShipImg;
                 width = alienShipTargetWidth; 
@@ -264,13 +282,13 @@
                 yPos = player.groundY - alienShipClearance - height;
 
                 if (yPos < 10) yPos = 10; 
-                if (yPos + height > canvasHeight - groundHeight - player.height / 2) { 
+                if (yPos + height > gameCanvasHeight - groundHeight - player.height / 2) { 
                     yPos = player.groundY - alienShipClearance - height; 
                 }
             }
 
             const newObstacle = { 
-                x: canvasWidth, y: yPos, width, height, type: obstacleType, image: img, 
+                x: gameCanvasWidth, y: yPos, width, height, type: obstacleType, image: img, 
                 draw() { 
                     if (this.image.complete && this.image.naturalWidth > 0) {
                         ctx.drawImage(this.image, this.x, this.y, this.width, this.height); 
@@ -286,8 +304,8 @@
 
         function createPowerUp() {
             const newPowerUp = {
-                x: canvasWidth,
-                y: canvasHeight - groundHeight - powerUpTargetHeight - (Math.random() * (player.height + 20)), 
+                x: gameCanvasWidth,
+                y: gameCanvasHeight - groundHeight - powerUpTargetHeight - (Math.random() * (player.height + 20)), 
                 width: powerUpTargetWidth,
                 height: powerUpTargetHeight,
                 image: powerUpImg,
@@ -307,10 +325,10 @@
         }
 
         function handleObstacles() {
-            const spawnMinDistance = canvasWidth * 0.4 + gameSpeed * 10; 
-            const spawnRandomDistance = canvasWidth * 0.3;
+            const spawnMinDistance = gameCanvasWidth * 0.4 + gameSpeed * 10; 
+            const spawnRandomDistance = gameCanvasWidth * 0.3;
 
-            if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvasWidth - spawnMinDistance - Math.random() * spawnRandomDistance) {
+            if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < gameCanvasWidth - spawnMinDistance - Math.random() * spawnRandomDistance) {
                  if (Math.random() < (0.015 + gameSpeed * 0.0005) && gameStarted) { 
                     createObstacle();
                  }
@@ -388,24 +406,65 @@
             }
         }
         
-        function drawBackgroundImage(){if(backgroundPattern&&bgPatternCanvas){ctx.save();ctx.globalAlpha=.1;let e=backgroundOffsetX%bgPatternCanvas.width;e>0&&(e-=bgPatternCanvas.width);ctx.translate(e,0);ctx.fillStyle=backgroundPattern;ctx.fillRect(0,0,canvasWidth+bgPatternCanvas.width,canvasHeight);ctx.restore()}else if(bgImg.complete&&bgImg.naturalWidth>0){bgPatternCanvas||createBackgroundPatternTile();bgPatternCanvas&&!backgroundPattern&&createActualPattern();if(backgroundPattern&&bgPatternCanvas){ctx.save();ctx.globalAlpha=.1;let e=backgroundOffsetX%bgPatternCanvas.width;e>0&&(e-=bgPatternCanvas.width);ctx.translate(e,0);ctx.fillStyle=backgroundPattern;ctx.fillRect(0,0,canvasWidth+bgPatternCanvas.width,canvasHeight);ctx.restore()}else{ctx.save();ctx.globalAlpha=.1;ctx.drawImage(bgImg,0,0,canvasWidth,canvasHeight);ctx.restore()}}else{ctx.fillStyle=currentTheme.canvasFallbackBg;ctx.fillRect(0,0,canvasWidth,canvasHeight)}}
+        function createBackgroundPatternTile(){if(bgImg.complete&&bgImg.naturalWidth>0){bgPatternCanvas=document.createElement("canvas");bgPatternCanvas.width=backgroundTileWidth;bgPatternCanvas.height=backgroundTileHeight;const e=bgPatternCanvas.getContext("2d");e.drawImage(bgImg,0,0,backgroundTileWidth,backgroundTileHeight)}else bgPatternCanvas=null}
+        
+        function createActualPattern(){ 
+            if(bgPatternCanvas && bgCtx) {
+                backgroundPattern=bgCtx.createPattern(bgPatternCanvas,"repeat");
+            } else {
+                backgroundPattern=null;
+            }
+        }
+
+        function drawScrollingFullScreenBackground(){ 
+            if(!bgCtx) return;
+            bgCtx.clearRect(0,0,backgroundCanvas.width,backgroundCanvas.height);
+            if(backgroundPattern&&bgPatternCanvas){
+                bgCtx.save();
+                bgCtx.globalAlpha=.1;
+                let e=backgroundOffsetX%bgPatternCanvas.width;
+                e>0&&(e-=bgPatternCanvas.width);
+                bgCtx.translate(e,0);
+                bgCtx.fillStyle=backgroundPattern;
+                bgCtx.fillRect(0,0,backgroundCanvas.width+bgPatternCanvas.width,backgroundCanvas.height); 
+                bgCtx.restore();
+            } else if(bgImg.complete&&bgImg.naturalWidth>0){
+                if(!bgPatternCanvas) createBackgroundPatternTile();
+                if(bgPatternCanvas&&!backgroundPattern) createActualPattern();
+                if(backgroundPattern&&bgPatternCanvas){
+                    bgCtx.save();
+                    bgCtx.globalAlpha=.1;
+                    let e=backgroundOffsetX%bgPatternCanvas.width;
+                    e>0&&(e-=bgPatternCanvas.width);
+                    bgCtx.translate(e,0);
+                    bgCtx.fillStyle=backgroundPattern;
+                    bgCtx.fillRect(0,0,backgroundCanvas.width+bgPatternCanvas.width,backgroundCanvas.height);
+                    bgCtx.restore();
+                }else{
+                    bgCtx.save();
+                    bgCtx.globalAlpha=.1;
+                    bgCtx.drawImage(bgImg,0,0,backgroundCanvas.width,backgroundCanvas.height);
+                    bgCtx.restore();
+                }
+            }else{
+                bgCtx.fillStyle=currentTheme.canvasFallbackBg;
+                bgCtx.fillRect(0,0,backgroundCanvas.width,backgroundCanvas.height)
+            }
+        }
+        
         function drawGround(){}
         function showMessage(e,t=3e3){messageBox.textContent=e;messageBox.style.display="block";setTimeout(()=>{messageBox.style.display="none"},t)}
-        function createBackgroundPatternTile(){if(bgImg.complete&&bgImg.naturalWidth>0){bgPatternCanvas=document.createElement("canvas");bgPatternCanvas.width=backgroundTileWidth;bgPatternCanvas.height=backgroundTileHeight;const e=bgPatternCanvas.getContext("2d");e.drawImage(bgImg,0,0,backgroundTileWidth,backgroundTileHeight)}else bgPatternCanvas=null}
-        function createActualPattern(){if(bgPatternCanvas)backgroundPattern=ctx.createPattern(bgPatternCanvas,"repeat");else backgroundPattern=null}
+        
 
         function drawHeaderPalopsee() {
             if (!headerPalopseeCtx || !palopseeImg.complete || palopseeImg.naturalWidth === 0) {
-                // Draw a fallback if image not ready or canvas context not available
                 if(headerPalopseeCtx) {
                     headerPalopseeCtx.fillStyle = currentTheme.canvasFallbackBg;
                     headerPalopseeCtx.fillRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
                 }
                 return;
             }
-
             headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-
             if (currentTheme === themes.dark) {
                 if (!headerPalopseeBufferCanvas || headerPalopseeBufferCanvas.width !== headerPalopseeTargetWidth || headerPalopseeBufferCanvas.height !== headerPalopseeTargetHeight) {
                     headerPalopseeBufferCanvas = document.createElement('canvas');
@@ -432,28 +491,27 @@
                 cancelAnimationFrame(animationFrameId);
             }
             playGameOverSound(); 
-            drawBackgroundImage(); 
-
+            
             ctx.fillStyle = currentTheme.gameOverOverlay; 
-            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillRect(0, 0, gameCanvasWidth, gameCanvasHeight); 
             ctx.font = `40px ${gameFont}`; 
             ctx.fillStyle = currentTheme.gameOverMainText; 
             ctx.textAlign = 'center';
-            ctx.fillText('Game Over!', canvasWidth / 2, canvasHeight / 2 - 30);
+            ctx.fillText('Game Over!', gameCanvasWidth / 2, gameCanvasHeight / 2 - 30);
             ctx.font = `20px ${gameFont}`; 
             ctx.fillStyle = currentTheme.gameOverSubText; 
-            ctx.fillText(`Score: ${score}`, canvasWidth / 2, canvasHeight / 2 + 10);
+            ctx.fillText(`Score: ${score}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 10);
             
             if (score > highScore) {
                 highScore = score;
                 localStorage.setItem(highScoreKey, highScore); 
-                ctx.fillText(`New High Score! ${highScore}`, canvasWidth / 2, canvasHeight / 2 + 40);
+                ctx.fillText(`New High Score! ${highScore}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 40);
             } else {
-                ctx.fillText(`High Score: ${highScore}`, canvasWidth / 2, canvasHeight / 2 + 40);
+                ctx.fillText(`High Score: ${highScore}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 40);
             }
 
             ctx.font = `16px ${gameFont}`; 
-            ctx.fillText('Tap or Press Space/Up to Restart', canvasWidth / 2, canvasHeight / 2 + 70);
+            ctx.fillText('Tap or Press Space/Up to Restart', gameCanvasWidth / 2, gameCanvasHeight / 2 + 70);
         }
 
         function resetGame() {
@@ -487,21 +545,19 @@
         function gameLoop() {
             if (gameOver) return;
 
-            ctx.clearRect(0, 0, canvasWidth, canvasHeight); 
-            
             backgroundOffsetX -= gameSpeed;
             if (bgPatternCanvas && bgPatternCanvas.width > 0) {
                  if (backgroundOffsetX <= -bgPatternCanvas.width) {
                     backgroundOffsetX += bgPatternCanvas.width; 
                 }
             }
+            drawScrollingFullScreenBackground(); 
 
-            drawBackgroundImage(); 
-            drawGround(); 
+            ctx.clearRect(0, 0, gameCanvasWidth, gameCanvasHeight); 
             player.update();
-            player.draw();
-            handleObstacles();
-            handlePowerUps(); 
+            player.draw(); 
+            handleObstacles(); 
+            handlePowerUps();  
             
             ctx.font = `16px ${gameFont}`; 
             ctx.fillStyle = currentTheme.scoreText; 
@@ -519,17 +575,14 @@
                 createActualPattern(); 
             }
             if (this === palopseeImg && this.complete && this.naturalWidth > 0) {
-                drawHeaderPalopsee(); // Draw header icon once Palopsee image is loaded
+                drawHeaderPalopsee(); 
             }
-
 
             if (imagesLoaded === totalImages) {
                 if (!gameStarted && !gameOver) {
                     showMessage('Ready to Fly!', 2000);
-                } else if (gameOver) {
-                    setGameOver(); 
-                }
-                 resizeCanvas(); 
+                } else if (gameOver) { }
+                 resizeAndRedrawAll(); 
             }
         }
 
@@ -549,32 +602,48 @@
         }
 
         window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'ArrowUp')) { e.preventDefault(); startGameActions(); } });
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startGameActions(); }, { passive: false }); 
+        
+        // Changed to listen on document.body for taps
+        document.body.addEventListener('touchstart', (e) => {
+            // Prevent jump if tap is on or inside the header link container
+            if (e.target.closest('#headerLinkContainer')) {
+                return; 
+            }
+            e.preventDefault(); 
+            startGameActions(); 
+        }, { passive: false }); 
 
         function applyTheme(isDark) { 
             currentTheme = isDark ? themes.dark : themes.light; 
             bodyElement.className = isDark ? 'dark-theme' : 'light-theme'; 
-            drawHeaderPalopsee(); // Redraw header icon with new theme
-            resizeCanvas(); 
+            drawHeaderPalopsee(); 
+            resizeAndRedrawAll(); 
         }
         const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
         darkModeMediaQuery.addEventListener('change', (e) => applyTheme(e.matches));
 
-        function resizeCanvas() {
+        function resizeAndRedrawAll() { 
+            backgroundCanvas.width = window.innerWidth;
+            backgroundCanvas.height = window.innerHeight;
+            if (bgImg.complete && bgImg.naturalWidth > 0) {
+                 createBackgroundPatternTile();
+                 createActualPattern(); 
+            }
+            
             let newWidth = window.innerWidth;
             let newHeight = newWidth / designAspectRatio;
 
-            canvas.width = newWidth;
-            canvas.height = newHeight;
-            canvasWidth = newWidth; 
-            canvasHeight = newHeight;
+            gameCanvas.width = newWidth;
+            gameCanvas.height = newHeight;
+            gameCanvasWidth = newWidth; 
+            gameCanvasHeight = newHeight;
 
-            player.groundY = canvas.height - groundHeight - player.height; 
+            player.groundY = gameCanvas.height - groundHeight - player.height; 
             if (!player.isJumping || !gameStarted) { player.y = player.groundY; }
 
             obstacles.forEach(obs => {
                 if (obs.type === 'asteroid') {
-                    obs.y = canvas.height - groundHeight - obs.height; 
+                    obs.y = gameCanvas.height - groundHeight - obs.height; 
                 } else if (obs.type === 'alienShip') {
                     const alienShipClearance = 5 + player.height * 0.2; 
                     obs.y = player.groundY - alienShipClearance - obs.height; 
@@ -582,31 +651,70 @@
                 }
             });
              powerUps.forEach(pUp => { 
-                pUp.y = Math.max(player.height + 10, Math.min(pUp.y, canvas.height - groundHeight - pUp.height - 10));
+                pUp.y = Math.max(player.height + 10, Math.min(pUp.y, gameCanvas.height - groundHeight - pUp.height - 10));
             });
 
+            if (!gameStarted || gameOver) { 
+                drawScrollingFullScreenBackground(); 
+                ctx.clearRect(0,0,gameCanvas.width,gameCanvas.height); 
+                player.draw(); 
+                obstacles.forEach(o=>o.draw()); 
+                powerUps.forEach(p=>p.draw());
+            }
 
-            if (bgImg.complete && bgImg.naturalWidth > 0) { createBackgroundPatternTile(); createActualPattern(); }
-            ctx.clearRect(0,0,canvas.width,canvas.height); drawBackgroundImage(); drawGround(); player.draw(); obstacles.forEach(o=>o.draw()); powerUps.forEach(p=>p.draw());
-            if(!gameOver){ctx.font=`16px ${gameFont}`;ctx.fillStyle=currentTheme.scoreText;ctx.textAlign="left";ctx.fillText(`Score: ${score}`,10,25)}
-            if(gameOver){setGameOver()}else if(!gameStarted&&imagesLoaded===totalImages){ctx.font=`20px ${gameFont}`;ctx.textAlign="center";const e="Tap Screen or Press Space/Up to Start!",t=ctx.measureText(e).width,i=parseInt(ctx.font,10)*1.2;ctx.fillStyle=currentTheme.promptBg;ctx.fillRect(canvas.width/2-t/2-10,canvas.height/2-i,t+20,i+10);ctx.fillStyle=currentTheme.promptText;ctx.fillText(e,canvas.width/2,canvas.height/2-i/2+5)}else if(!gameStarted&&imagesLoaded<totalImages){ctx.font=`20px ${gameFont}`;ctx.textAlign="center";const e="Loading Assets...",t=ctx.measureText(e).width,i=parseInt(ctx.font,10)*1.2;ctx.fillStyle=currentTheme.promptBg;ctx.fillRect(canvas.width/2-t/2-10,canvas.height/2-i,t+20,i+10);ctx.fillStyle=currentTheme.promptText;ctx.fillText(e,canvas.width/2,canvas.height/2-i/2+5)}
-             drawHeaderPalopsee(); // Ensure header is redrawn on resize too
+            if (!gameOver) {
+                if(!gameStarted && imagesLoaded === totalImages || gameStarted) {
+                    ctx.font = `16px ${gameFont}`; 
+                    ctx.fillStyle = currentTheme.scoreText; 
+                    ctx.textAlign = 'left';
+                    ctx.fillText(`Score: ${score}`, 10, 25);
+                }
+            }
+
+            if (gameOver) { 
+                setGameOver(); 
+            } else if (!gameStarted && imagesLoaded === totalImages) { 
+                ctx.font = `20px ${gameFont}`; 
+                ctx.textAlign = 'center';
+                const promptText = 'Tap Screen or Press Space/Up to Start!';
+                const textMetrics = ctx.measureText(promptText);
+                const textWidth = textMetrics.width;
+                const textHeight = parseInt(ctx.font, 10) * 1.2;
+
+                ctx.fillStyle = currentTheme.promptBg; 
+                ctx.fillRect(gameCanvas.width / 2 - textWidth / 2 - 10, gameCanvas.height / 2 - textHeight, textWidth + 20, textHeight + 10);
+                ctx.fillStyle = currentTheme.promptText; 
+                ctx.fillText(promptText, gameCanvas.width / 2, gameCanvas.height / 2 - textHeight / 2 + 5);
+
+            } else if (!gameStarted && imagesLoaded < totalImages) { 
+                 ctx.font = `20px ${gameFont}`; 
+                 ctx.textAlign = 'center';
+                 const loadingText = 'Loading Assets...';
+                 const textMetricsLoading = ctx.measureText(loadingText);
+                 const loadingTextWidth = textMetricsLoading.width;
+                 const loadingTextHeight = parseInt(ctx.font, 10) * 1.2;
+
+                 ctx.fillStyle = currentTheme.promptBg; 
+                 ctx.fillRect(gameCanvas.width / 2 - loadingTextWidth / 2 - 10, gameCanvas.height / 2 - loadingTextHeight, loadingTextWidth + 20, loadingTextHeight + 10);
+                 ctx.fillStyle = currentTheme.promptText; 
+                 ctx.fillText(loadingText, gameCanvas.width / 2, gameCanvas.height / 2 - loadingTextHeight/2 + 5);
+            }
+             drawHeaderPalopsee(); 
         }
         
-        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('resize', resizeAndRedrawAll);
 
         function initGame() {
-            headerLink.href = customHeaderLinkUrl; // Set the custom link URL
+            headerLink.href = customHeaderLinkUrl; 
             headerPalopseeCanvas.width = headerPalopseeTargetWidth;
             headerPalopseeCanvas.height = headerPalopseeTargetHeight;
-
 
             const savedHighScore = localStorage.getItem(highScoreKey);
             if (savedHighScore) { highScore = parseInt(savedHighScore, 10); }
 
             player.width = playerTargetWidth;
             player.height = playerTargetHeight;
-            player.groundY = canvasHeight - groundHeight - player.height; 
+            player.groundY = gameCanvasHeight - groundHeight - player.height; 
             player.y = player.groundY; 
 
             if (!palopseeBufferCanvas) {
@@ -615,13 +723,12 @@
                 palopseeBufferCanvas.height = player.height;
                 palopseeBufferCtx = palopseeBufferCanvas.getContext('2d');
             }
-            if (!headerPalopseeBufferCanvas) { // Initialize buffer for header icon
+            if (!headerPalopseeBufferCanvas) { 
                 headerPalopseeBufferCanvas = document.createElement('canvas');
                 headerPalopseeBufferCanvas.width = headerPalopseeTargetWidth;
                 headerPalopseeBufferCanvas.height = headerPalopseeTargetHeight;
                 headerPalopseeBufferCtx = headerPalopseeBufferCanvas.getContext('2d');
             }
-
 
             palopseeImg.onload = onImageLoad;
             asteroidImg.onload = onImageLoad;
