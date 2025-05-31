@@ -129,6 +129,7 @@
             dark: { bodyBg: '#121212', bodyText: '#DDDDDD', canvasFallbackBg: '#222222', scoreText: '#DDDDDD', promptText: '#FFFFFF', promptBg: 'rgba(0, 0, 0, 0.5)', gameOverOverlay: 'rgba(255, 255, 255, 0.15)', gameOverMainText: '#FFFFFF', gameOverSubText: '#EEEEEE' }
         };
         let currentTheme = themes.light; 
+        let isDarkMode = false; 
 
         // --- Customizable Link URL ---
         let customHeaderLinkUrl = "#"; 
@@ -136,6 +137,7 @@
 
         // --- Customizable Image URLs ---
         let palopseeImageUrl = 'https://palopsee.netlify.app/palopsee.png'; 
+        let palopseeDarkImageUrl = 'https://palopsee.netlify.app/palopsee-modified.png'; // New Dark Mode Image
         let backgroundImageUrl = 'https://palopsee.netlify.app/background.png'; 
         let asteroidImageUrl = 'https://placehold.co/32x32/A9A9A9/000000?text=O'; 
         let alienShipImageUrl = 'https://placehold.co/48x24/90EE90/000000?text=A'; 
@@ -162,6 +164,7 @@
 
 
         let palopseeImg = new Image();
+        let palopseeDarkImg = new Image(); // Image object for dark mode Palopsee
         let asteroidImg = new Image();
         let alienShipImg = new Image();
         let powerUpImg = new Image();
@@ -170,20 +173,20 @@
         let backgroundPattern = null; 
         let backgroundOffsetX = 0; 
 
-        let palopseeBufferCanvas = null; 
-        let palopseeBufferCtx = null;
-        let headerPalopseeBufferCanvas = null; 
-        let headerPalopseeBufferCtx = null;
-
+        // Buffer canvases for Palopsee inversion are no longer needed
+        // let palopseeBufferCanvas = null; 
+        // let palopseeBufferCtx = null;
+        // let headerPalopseeBufferCanvas = null; 
+        // let headerPalopseeBufferCtx = null;
 
         let imagesLoaded = 0;
-        const totalImages = 5; 
+        const totalImages = 6; // Increased for palopseeDarkImg
 
         // Game variables
         const highScoreKey = 'palopseeGameHighScore'; 
         let score = 0;
         let previousScoreForSound = 0; 
-        const scoreMilestoneInterval = 100; 
+        const scoreMilestoneInterval = 30; 
         let powerUpSpawnedForCurrentMilestone = false; 
         let highScore = 0;
         let gameSpeed = 5;
@@ -213,32 +216,24 @@
             isInvincible: false, 
             invincibilityFrames: 0, 
             draw() {
-                if (palopseeImg.complete && palopseeImg.naturalWidth > 0) {
+                let currentPalopseeImage = isDarkMode ? palopseeDarkImg : palopseeImg;
+
+                if (currentPalopseeImage.complete && currentPalopseeImage.naturalWidth > 0) {
                     if (this.isInvincible) {
                         this.invincibilityFrames++;
                         if (this.invincibilityFrames % 10 < 5) { 
                             return; 
                         }
                     }
-
-                    if (currentTheme === themes.dark) {
-                        if (!palopseeBufferCanvas || palopseeBufferCanvas.width !== this.width || palopseeBufferCanvas.height !== this.height) {
-                            palopseeBufferCanvas = document.createElement('canvas');
-                            palopseeBufferCanvas.width = this.width;
-                            palopseeBufferCanvas.height = this.height;
-                            palopseeBufferCtx = palopseeBufferCanvas.getContext('2d');
-                        }
-                        palopseeBufferCtx.clearRect(0, 0, this.width, this.height); 
-                        palopseeBufferCtx.filter = 'invert(1)'; 
-                        palopseeBufferCtx.drawImage(palopseeImg, 0, 0, this.width, this.height);
-                        palopseeBufferCtx.filter = 'none'; 
-                        ctx.drawImage(palopseeBufferCanvas, this.x, this.y, this.width, this.height);
-                    } else {
-                        ctx.drawImage(palopseeImg, this.x, this.y, this.width, this.height);
-                    }
+                    ctx.drawImage(currentPalopseeImage, this.x, this.y, this.width, this.height);
                 } else {
-                    ctx.fillStyle = currentTheme.scoreText; 
-                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                    // Fallback if the specific theme image isn't ready (should be rare if preloaded)
+                    if (palopseeImg.complete && palopseeImg.naturalWidth > 0) {
+                         ctx.drawImage(palopseeImg, this.x, this.y, this.width, this.height);
+                    } else {
+                        ctx.fillStyle = currentTheme.scoreText; 
+                        ctx.fillRect(this.x, this.y, this.width, this.height);
+                    }
                 }
             },
             jump() {
@@ -457,28 +452,19 @@
         
 
         function drawHeaderPalopsee() {
-            if (!headerPalopseeCtx || !palopseeImg.complete || palopseeImg.naturalWidth === 0) {
-                if(headerPalopseeCtx) {
-                    headerPalopseeCtx.fillStyle = currentTheme.canvasFallbackBg;
-                    headerPalopseeCtx.fillRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-                }
-                return;
-            }
-            headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-            if (currentTheme === themes.dark) {
-                if (!headerPalopseeBufferCanvas || headerPalopseeBufferCanvas.width !== headerPalopseeTargetWidth || headerPalopseeBufferCanvas.height !== headerPalopseeTargetHeight) {
-                    headerPalopseeBufferCanvas = document.createElement('canvas');
-                    headerPalopseeBufferCanvas.width = headerPalopseeTargetWidth;
-                    headerPalopseeBufferCanvas.height = headerPalopseeTargetHeight;
-                    headerPalopseeBufferCtx = headerPalopseeBufferCanvas.getContext('2d');
-                }
-                headerPalopseeBufferCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-                headerPalopseeBufferCtx.filter = 'invert(1)';
-                headerPalopseeBufferCtx.drawImage(palopseeImg, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-                headerPalopseeBufferCtx.filter = 'none';
-                headerPalopseeCtx.drawImage(headerPalopseeBufferCanvas, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
+            if (!headerPalopseeCtx) return;
+            
+            let currentHeaderImage = isDarkMode ? palopseeDarkImg : palopseeImg;
+
+            if (currentHeaderImage.complete && currentHeaderImage.naturalWidth > 0) {
+                 headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
+                 headerPalopseeCtx.drawImage(currentHeaderImage, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
+            } else if (palopseeImg.complete && palopseeImg.naturalWidth > 0) { // Fallback to light mode image if dark isn't ready
+                 headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
+                 headerPalopseeCtx.drawImage(palopseeImg, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
             } else {
-                headerPalopseeCtx.drawImage(palopseeImg, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
+                 headerPalopseeCtx.fillStyle = currentTheme.canvasFallbackBg;
+                 headerPalopseeCtx.fillRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
             }
         }
 
@@ -536,6 +522,7 @@
             backgroundOffsetX = 0; 
             
             palopseeImg.src = ""; palopseeImg.src = palopseeImageUrl;
+            palopseeDarkImg.src = ""; palopseeDarkImg.src = palopseeDarkImageUrl; // Reload dark mode image
             asteroidImg.src = ""; asteroidImg.src = asteroidImageUrl;
             alienShipImg.src = ""; alienShipImg.src = alienShipImageUrl;
             powerUpImg.src = ""; powerUpImg.src = powerUpImageUrl;
@@ -574,9 +561,10 @@
                 createBackgroundPatternTile();
                 createActualPattern(); 
             }
-            if (this === palopseeImg && this.complete && this.naturalWidth > 0) {
-                drawHeaderPalopsee(); 
+            if ((this === palopseeImg || this === palopseeDarkImg) && palopseeImg.complete && palopseeDarkImg.complete && palopseeImg.naturalWidth > 0 && palopseeDarkImg.naturalWidth > 0) {
+                 drawHeaderPalopsee(); 
             }
+
 
             if (imagesLoaded === totalImages) {
                 if (!gameStarted && !gameOver) {
@@ -586,7 +574,16 @@
             }
         }
 
-        function onImageError(e) { console.error("Error loading image:", e.target.src); onImageLoad(); }
+        function onImageError(e) { 
+            console.error("Error loading image:", e.target.src); 
+            const imageName = e.target.src.split('/').pop() || 'asset';
+            let corsMessage = "";
+            if (e.target.src.includes("netlify.app")) { 
+                corsMessage = " Check server CORS settings if this is your image.";
+            }
+            showMessage(`Error loading ${imageName}. Using fallback.${corsMessage}`, 7000);
+            onImageLoad(); 
+        }
         
         function startGameActions() {
             if (!audioInitialized) { 
@@ -603,9 +600,7 @@
 
         window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'ArrowUp')) { e.preventDefault(); startGameActions(); } });
         
-        // Changed to listen on document.body for taps
         document.body.addEventListener('touchstart', (e) => {
-            // Prevent jump if tap is on or inside the header link container
             if (e.target.closest('#headerLinkContainer')) {
                 return; 
             }
@@ -613,9 +608,10 @@
             startGameActions(); 
         }, { passive: false }); 
 
-        function applyTheme(isDark) { 
-            currentTheme = isDark ? themes.dark : themes.light; 
-            bodyElement.className = isDark ? 'dark-theme' : 'light-theme'; 
+        function applyTheme(isDarkSystem) { 
+            isDarkMode = isDarkSystem; 
+            currentTheme = isDarkMode ? themes.dark : themes.light; 
+            bodyElement.className = isDarkMode ? 'dark-theme' : 'light-theme'; 
             drawHeaderPalopsee(); 
             resizeAndRedrawAll(); 
         }
@@ -705,6 +701,11 @@
         window.addEventListener('resize', resizeAndRedrawAll);
 
         function initGame() {
+            // Set crossOrigin for images that might cause CORS issues with getImageData
+            // For Netlify, it's often okay without, but if issues persist, this is the first thing to check.
+            // palopseeImg.crossOrigin = "anonymous"; 
+            // palopseeDarkImg.crossOrigin = "anonymous"; // Also for the dark mode image
+
             headerLink.href = customHeaderLinkUrl; 
             headerPalopseeCanvas.width = headerPalopseeTargetWidth;
             headerPalopseeCanvas.height = headerPalopseeTargetHeight;
@@ -717,32 +718,24 @@
             player.groundY = gameCanvasHeight - groundHeight - player.height; 
             player.y = player.groundY; 
 
-            if (!palopseeBufferCanvas) {
-                palopseeBufferCanvas = document.createElement('canvas');
-                palopseeBufferCanvas.width = player.width;
-                palopseeBufferCanvas.height = player.height;
-                palopseeBufferCtx = palopseeBufferCanvas.getContext('2d');
-            }
-            if (!headerPalopseeBufferCanvas) { 
-                headerPalopseeBufferCanvas = document.createElement('canvas');
-                headerPalopseeBufferCanvas.width = headerPalopseeTargetWidth;
-                headerPalopseeBufferCanvas.height = headerPalopseeTargetHeight;
-                headerPalopseeBufferCtx = headerPalopseeBufferCanvas.getContext('2d');
-            }
+            // No longer need palopseeBufferCanvas or headerPalopseeBufferCanvas for pixel inversion
 
             palopseeImg.onload = onImageLoad;
+            palopseeDarkImg.onload = onImageLoad; // Add onload for dark mode image
             asteroidImg.onload = onImageLoad;
             alienShipImg.onload = onImageLoad; 
             powerUpImg.onload = onImageLoad; 
             bgImg.onload = onImageLoad; 
 
             palopseeImg.onerror = onImageError;
+            palopseeDarkImg.onerror = onImageError; // Add onerror for dark mode image
             asteroidImg.onerror = onImageError;
             alienShipImg.onerror = onImageError;
             powerUpImg.onerror = onImageError; 
             bgImg.onerror = onImageError; 
 
             palopseeImg.src = palopseeImageUrl;
+            palopseeDarkImg.src = palopseeDarkImageUrl; // Set src for dark mode image
             asteroidImg.src = asteroidImageUrl;
             alienShipImg.src = alienShipImageUrl;
             powerUpImg.src = powerUpImageUrl; 
