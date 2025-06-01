@@ -42,7 +42,7 @@
         }
         canvas#gameCanvas { 
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            /* box-shadow: 0 4px 8px rgba(0,0,0,0.1); */ /* Removed box-shadow */
             touch-action: none; 
             display: block; 
             position: relative; /* Ensure it's above the fixed background */
@@ -87,6 +87,20 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
+        // ======================================================================
+        // Palopsee's Space Run - Final Version
+        // ======================================================================
+        //
+        // To customize this game further, you can change the URLs below for
+        // Palopsee's images, the obstacles, the power-up, and the background.
+        // You can also update the 'customHeaderLinkUrl' to point the top
+        // Palopsee icon to your desired webpage.
+        //
+        // Remember to use 8-bit style images for a consistent look!
+        // Transparent backgrounds (PNG) are recommended for game elements.
+        //
+        // ======================================================================
+
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
         const backgroundCanvas = document.getElementById('backgroundCanvas');
@@ -132,16 +146,17 @@
         let isDarkMode = false; 
 
         // --- Customizable Link URL ---
-        let customHeaderLinkUrl = "#"; 
+        let customHeaderLinkUrl = "#"; // <<<< REPLACE # WITH YOUR DESIRED URL for the top Palopsee icon >>>>
         // --- End Customizable Link URL ---
 
         // --- Customizable Image URLs ---
+        // Replace these placeholder URLs with your actual 8-bit sprite URLs!
         let palopseeImageUrl = 'https://palopsee.netlify.app/palopsee.png'; 
-        let palopseeDarkImageUrl = 'https://palopsee.netlify.app/palopsee-modified.png'; // New Dark Mode Image
+        let palopseeDarkImageUrl = 'https://palopsee.netlify.app/palopsee-modified.png';
         let backgroundImageUrl = 'https://palopsee.netlify.app/background.png'; 
-        let asteroidImageUrl = 'https://placehold.co/32x32/A9A9A9/000000?text=O'; 
-        let alienShipImageUrl = 'https://placehold.co/48x24/90EE90/000000?text=A'; 
-        let powerUpImageUrl = 'https://placehold.co/24x24/FFD700/000000?text=S'; 
+        let asteroidImageUrl = 'https://placehold.co/32x32/A9A9A9/000000?text=O'; // Placeholder for your 8-bit asteroid
+        let alienShipImageUrl = 'https://placehold.co/48x24/90EE90/000000?text=A'; // Placeholder for your 8-bit alien ship
+        let powerUpImageUrl = 'https://placehold.co/24x24/FFD700/000000?text=S'; // Placeholder for your 8-bit star
         // --- End Customizable Image URLs ---
 
         // --- Define Target Sizes for Game Elements ---
@@ -164,7 +179,7 @@
 
 
         let palopseeImg = new Image();
-        let palopseeDarkImg = new Image(); // Image object for dark mode Palopsee
+        let palopseeDarkImg = new Image(); 
         let asteroidImg = new Image();
         let alienShipImg = new Image();
         let powerUpImg = new Image();
@@ -173,14 +188,8 @@
         let backgroundPattern = null; 
         let backgroundOffsetX = 0; 
 
-        // Buffer canvases for Palopsee inversion are no longer needed
-        // let palopseeBufferCanvas = null; 
-        // let palopseeBufferCtx = null;
-        // let headerPalopseeBufferCanvas = null; 
-        // let headerPalopseeBufferCtx = null;
-
         let imagesLoaded = 0;
-        const totalImages = 6; // Increased for palopseeDarkImg
+        const totalImages = 6; // Palopsee, PalopseeDark, Asteroid, AlienShip, PowerUp, Background
 
         // Game variables
         const highScoreKey = 'palopseeGameHighScore'; 
@@ -216,21 +225,22 @@
             isInvincible: false, 
             invincibilityFrames: 0, 
             draw() {
-                let currentPalopseeImage = isDarkMode ? palopseeDarkImg : palopseeImg;
+                let currentPalopseeImageToDraw = isDarkMode ? palopseeDarkImg : palopseeImg;
 
-                if (currentPalopseeImage.complete && currentPalopseeImage.naturalWidth > 0) {
+                // Ensure the selected image is loaded before trying to draw
+                if (currentPalopseeImageToDraw.complete && currentPalopseeImageToDraw.naturalWidth > 0) {
                     if (this.isInvincible) {
                         this.invincibilityFrames++;
                         if (this.invincibilityFrames % 10 < 5) { 
                             return; 
                         }
                     }
-                    ctx.drawImage(currentPalopseeImage, this.x, this.y, this.width, this.height);
+                    ctx.drawImage(currentPalopseeImageToDraw, this.x, this.y, this.width, this.height);
                 } else {
-                    // Fallback if the specific theme image isn't ready (should be rare if preloaded)
+                    // Fallback if the specific theme image isn't ready, try the default light mode one
                     if (palopseeImg.complete && palopseeImg.naturalWidth > 0) {
                          ctx.drawImage(palopseeImg, this.x, this.y, this.width, this.height);
-                    } else {
+                    } else { // Ultimate fallback: a colored rectangle
                         ctx.fillStyle = currentTheme.scoreText; 
                         ctx.fillRect(this.x, this.y, this.width, this.height);
                     }
@@ -459,7 +469,7 @@
             if (currentHeaderImage.complete && currentHeaderImage.naturalWidth > 0) {
                  headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
                  headerPalopseeCtx.drawImage(currentHeaderImage, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-            } else if (palopseeImg.complete && palopseeImg.naturalWidth > 0) { // Fallback to light mode image if dark isn't ready
+            } else if (palopseeImg.complete && palopseeImg.naturalWidth > 0) { 
                  headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
                  headerPalopseeCtx.drawImage(palopseeImg, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
             } else {
@@ -522,7 +532,7 @@
             backgroundOffsetX = 0; 
             
             palopseeImg.src = ""; palopseeImg.src = palopseeImageUrl;
-            palopseeDarkImg.src = ""; palopseeDarkImg.src = palopseeDarkImageUrl; // Reload dark mode image
+            palopseeDarkImg.src = ""; palopseeDarkImg.src = palopseeDarkImageUrl; 
             asteroidImg.src = ""; asteroidImg.src = asteroidImageUrl;
             alienShipImg.src = ""; alienShipImg.src = alienShipImageUrl;
             powerUpImg.src = ""; powerUpImg.src = powerUpImageUrl;
@@ -564,7 +574,6 @@
             if ((this === palopseeImg || this === palopseeDarkImg) && palopseeImg.complete && palopseeDarkImg.complete && palopseeImg.naturalWidth > 0 && palopseeDarkImg.naturalWidth > 0) {
                  drawHeaderPalopsee(); 
             }
-
 
             if (imagesLoaded === totalImages) {
                 if (!gameStarted && !gameOver) {
@@ -701,10 +710,11 @@
         window.addEventListener('resize', resizeAndRedrawAll);
 
         function initGame() {
-            // Set crossOrigin for images that might cause CORS issues with getImageData
-            // For Netlify, it's often okay without, but if issues persist, this is the first thing to check.
+            // Set crossOrigin for images that might cause CORS issues if you were to use getImageData
+            // For simply drawing, it's often not needed if the server allows the image to be fetched.
             // palopseeImg.crossOrigin = "anonymous"; 
-            // palopseeDarkImg.crossOrigin = "anonymous"; // Also for the dark mode image
+            // palopseeDarkImg.crossOrigin = "anonymous";
+            // bgImg.crossOrigin = "anonymous"; 
 
             headerLink.href = customHeaderLinkUrl; 
             headerPalopseeCanvas.width = headerPalopseeTargetWidth;
@@ -718,24 +728,22 @@
             player.groundY = gameCanvasHeight - groundHeight - player.height; 
             player.y = player.groundY; 
 
-            // No longer need palopseeBufferCanvas or headerPalopseeBufferCanvas for pixel inversion
-
             palopseeImg.onload = onImageLoad;
-            palopseeDarkImg.onload = onImageLoad; // Add onload for dark mode image
+            palopseeDarkImg.onload = onImageLoad; 
             asteroidImg.onload = onImageLoad;
             alienShipImg.onload = onImageLoad; 
             powerUpImg.onload = onImageLoad; 
             bgImg.onload = onImageLoad; 
 
             palopseeImg.onerror = onImageError;
-            palopseeDarkImg.onerror = onImageError; // Add onerror for dark mode image
+            palopseeDarkImg.onerror = onImageError; 
             asteroidImg.onerror = onImageError;
             alienShipImg.onerror = onImageError;
             powerUpImg.onerror = onImageError; 
             bgImg.onerror = onImageError; 
 
             palopseeImg.src = palopseeImageUrl;
-            palopseeDarkImg.src = palopseeDarkImageUrl; // Set src for dark mode image
+            palopseeDarkImg.src = palopseeDarkImageUrl; 
             asteroidImg.src = asteroidImageUrl;
             alienShipImg.src = alienShipImageUrl;
             powerUpImg.src = powerUpImageUrl; 
