@@ -12,26 +12,26 @@
             font-family: 'Pixelify Sans', 'Inter', sans-serif; 
             margin: 0;
             color: #333; 
-            overscroll-behavior: contain; 
+            overscroll-behavior-y: contain; 
             transition: background-color 0.3s ease, color 0.3s ease;
             overflow: hidden; 
-            height: 100vh; /* Ensure body takes full viewport height */
+            height: 100vh; 
             width: 100vw;
         }
         #backgroundCanvas {
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%; /* Changed from vw/vh to % for fixed parent */
+            width: 100%; 
             height: 100%;
             z-index: -1; 
         }
         #headerLinkContainer {
-            position: fixed; /* Position on top */
+            position: fixed; 
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 10; /* Above game canvas and background */
+            z-index: 10; 
         }
         #headerPalopseeCanvas {
             border-radius: 4px; 
@@ -41,15 +41,15 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%; /* Changed from vw/vh to % */
+            width: 100%; 
             height: 100%;
             touch-action: none; 
             display: block; 
-            z-index: 0; /* Above background, below header/messageBox */
+            z-index: 0; 
         }
         #messageBox {
             position: fixed;
-            top: 80px; /* Adjusted to be below header icon */
+            top: 80px; 
             left: 50%;
             transform: translateX(-50%);
             background-color: #4A90E2; 
@@ -57,17 +57,17 @@
             padding: 10px 20px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 1000; /* Highest z-index */
+            z-index: 1000; 
             display: none; 
             font-size: 16px;
             font-family: 'Pixelify Sans', 'Inter', sans-serif; 
         }
         .light-theme {
-            background-color: #ffffff; /* Body background for light theme */
+            background-color: #ffffff; 
             color: #333333;
         }
         .dark-theme {
-            background-color: #121212; /* Body background for dark theme */
+            background-color: #121212; 
             color: #DDDDDD;
         }
     </style>
@@ -82,16 +82,12 @@
         </a>
     </div>
 
-    <canvas id="gameCanvas"></canvas> {/* Game canvas will now be full screen */}
+    <canvas id="gameCanvas"></canvas> 
 
     <div id="messageBox"></div>
 
 
     <script>
-        // ======================================================================
-        // Palopsee's Space Run - Final Version
-        // ======================================================================
-
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
         const backgroundCanvas = document.getElementById('backgroundCanvas');
@@ -194,24 +190,25 @@
         let gameStarted = false;
         let animationFrameId;
 
-        const groundHeight = 50; // This is now relative to the bottom of the full screen
-        let gameCanvasWidth; // Will be set to window.innerWidth
-        let gameCanvasHeight; // Will be set to window.innerHeight
-        // designAspectRatio is no longer used for gameCanvas sizing
+        // groundHeight is no longer a visual line, but a conceptual offset from bottom for player's lowest point
+        // const groundHeight = 50; // This can be adjusted if needed, or removed if player floats freely
+        
+        let gameCanvasWidth; 
+        let gameCanvasHeight; 
 
         const gameFont = "'Pixelify Sans', 'Inter', sans-serif"; 
 
         // Player (Palopsee) properties
         const player = {
             x: 50,
-            y: 0, // Will be set in resize based on gameCanvasHeight
+            y: 0, 
             width: playerTargetWidth,  
             height: playerTargetHeight, 
             dy: 0, 
-            jumpStrength: 12, // This might need adjustment for larger screen heights
-            gravity: 0.7,   // This might need adjustment for larger screen heights
+            jumpStrength: 12, 
+            gravity: 0.7,   
             isJumping: false,
-            groundY: 0, // Will be set in resize
+            restingY: 0, // Palopsee's centered resting Y position (top of player)
             isInvincible: false, 
             invincibilityFrames: 0, 
             draw() {
@@ -246,8 +243,9 @@
                     this.y += this.dy;
                     this.dy += this.gravity;
                 }
-                if (this.y + this.height >= this.groundY + this.height) {
-                    this.y = this.groundY;
+                // "Land" back at the restingY position
+                if (this.y >= this.restingY && this.dy > 0) { // Check if moving downwards and at/below restingY
+                    this.y = this.restingY;
                     this.isJumping = false;
                     this.dy = 0;
                 }
@@ -260,24 +258,24 @@
         function createObstacle() {
             const obstacleType = Math.random() < 0.6 ? 'asteroid' : 'alienShip'; 
             let img, width, height, yPos;
+            const verticalCenter = gameCanvasHeight / 2;
 
             if (obstacleType === 'asteroid') {
                 img = asteroidImg;
                 width = asteroidTargetWidth; 
                 height = asteroidTargetHeight; 
-                yPos = gameCanvasHeight - groundHeight - height;
+                // Position asteroid around the vertical center, Palopsee needs to jump "over" its center
+                yPos = verticalCenter - height / 2 + (Math.random() * player.height - player.height / 2); // Slight vertical variation
             } else { // alienShip
                 img = alienShipImg;
                 width = alienShipTargetWidth; 
                 height = alienShipTargetHeight; 
                 
-                const alienShipClearance = 5 + player.height * 0.2; 
-                yPos = player.groundY - alienShipClearance - height;
+                // Position alien ship to fly above Palopsee's resting head height
+                const alienShipClearance = 10; // Clearance above player's head
+                yPos = player.restingY - alienShipClearance - height;
 
-                if (yPos < 10) yPos = 10; 
-                if (yPos + height > gameCanvasHeight - groundHeight - player.height / 2) { 
-                    yPos = player.groundY - alienShipClearance - height; 
-                }
+                if (yPos < 10) yPos = 10; // Ensure it's not off-screen top
             }
 
             const newObstacle = { 
@@ -296,9 +294,11 @@
         }
 
         function createPowerUp() {
+            const verticalCenter = gameCanvasHeight / 2;
             const newPowerUp = {
                 x: gameCanvasWidth,
-                y: gameCanvasHeight - groundHeight - powerUpTargetHeight - (Math.random() * (player.height + 20)), 
+                // Position power-up around vertical center, with some randomness
+                y: verticalCenter - powerUpTargetHeight / 2 + (Math.random() * (player.height * 2) - player.height), 
                 width: powerUpTargetWidth,
                 height: powerUpTargetHeight,
                 image: powerUpImg,
@@ -312,7 +312,10 @@
                 },
                 update() { this.x -= gameSpeed; }
             };
-            if (newPowerUp.y < player.height) newPowerUp.y = player.height + 10; 
+            // Ensure power-up is within reasonable vertical bounds
+            if (newPowerUp.y < 20) newPowerUp.y = 20;
+            if (newPowerUp.y + newPowerUp.height > gameCanvasHeight - 20) newPowerUp.y = gameCanvasHeight - 20 - newPowerUp.height;
+
 
             powerUps.push(newPowerUp);
         }
@@ -340,8 +343,11 @@
                     if (obs.type === 'asteroid') {
                         collided = true;
                     } else if (obs.type === 'alienShip') {
-                        if (player.isJumping) { 
-                            collided = true;
+                        // Collision with alien ship if Palopsee is jumping into it, 
+                        // or if Palopsee is at restingY and alien ship is at that level.
+                        // Since alien ships are positioned above resting Palopsee, collision primarily if jumping.
+                        if (player.isJumping || player.y + player.height > obs.y && player.y < obs.y + obs.height) {
+                             collided = true;
                         }
                     }
                 }
@@ -511,6 +517,7 @@
             player.dy = 0;
             player.isJumping = false;
             player.isInvincible = false;
+            // Player y and restingY will be set in resizeAndRedrawAll
             
             messageBox.style.display = 'none';
             
@@ -630,21 +637,27 @@
             gameCanvasWidth = gameCanvas.width; 
             gameCanvasHeight = gameCanvas.height;
 
-            // Update player's ground position based on new full-screen canvas height
-            player.groundY = gameCanvas.height - groundHeight - player.height; 
-            if (!player.isJumping || !gameStarted) { player.y = player.groundY; }
+            // Update player's resting Y position to be vertically centered
+            player.restingY = gameCanvasHeight / 2 - player.height / 2;
+            if (!player.isJumping || !gameStarted) { // If not jumping or game not started, set to restingY
+                 player.y = player.restingY;
+            }
+
 
             obstacles.forEach(obs => {
                 if (obs.type === 'asteroid') {
-                    obs.y = gameCanvas.height - groundHeight - obs.height; 
+                    // Center asteroid relative to player's resting Y
+                    obs.y = player.restingY + player.height / 2 - obs.height / 2 + (Math.random() * 20 - 10); // Slight random y variation
                 } else if (obs.type === 'alienShip') {
-                    const alienShipClearance = 5 + player.height * 0.2; 
-                    obs.y = player.groundY - alienShipClearance - obs.height; 
+                    const alienShipClearance = 10; 
+                    obs.y = player.restingY - alienShipClearance - obs.height; 
                     if (obs.y < 10) obs.y = 10;
                 }
             });
              powerUps.forEach(pUp => { 
-                pUp.y = Math.max(player.height + 10, Math.min(pUp.y, gameCanvas.height - groundHeight - pUp.height - 10));
+                pUp.y = gameCanvasHeight / 2 - pUp.height / 2 + (Math.random() * 60 - 30);
+                if (pUp.y < 20) pUp.y = 20;
+                if (pUp.y + pUp.height > gameCanvasHeight - 20) pUp.y = gameCanvasHeight - 20 - pUp.height;
             });
 
             if (!gameStarted || gameOver) { 
@@ -707,9 +720,7 @@
 
             player.width = playerTargetWidth;
             player.height = playerTargetHeight;
-            // Initial groundY and y based on initial gameCanvasHeight (which will be updated by resizeAndRedrawAll)
-            player.groundY = gameCanvasHeight - groundHeight - player.height; 
-            player.y = player.groundY; 
+            // Initial player.y and restingY will be set correctly in the first call to resizeAndRedrawAll
 
             palopseeImg.onload = onImageLoad;
             palopseeDarkImg.onload = onImageLoad; 
