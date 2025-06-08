@@ -138,15 +138,24 @@
             loadAsset(name, src, isGif = false) {
                 this.totalAssets++;
                 if (isGif) {
-                    // Fetch and parse GIF
                     fetch(src)
                         .then(resp => resp.arrayBuffer())
                         .then(buff => {
                             const gif = new GIF(buff);
                             const frames = gif.decompressFrames(true);
+                            // Create a full canvas for each frame
+                            const frameCanvases = frames.map(frame => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = frame.dims.width;
+                                canvas.height = frame.dims.height;
+                                const imageData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
+                                canvas.getContext('2d').putImageData(imageData, 0, 0);
+                                return { canvas, delay: frame.delay };
+                            });
+
                             this.assets[name] = { 
                                 isGif: true, 
-                                frames: frames, 
+                                frames: frameCanvases, 
                                 width: frames[0].dims.width, 
                                 height: frames[0].dims.height,
                                 frameIndex: 0,
@@ -155,10 +164,9 @@
                             this.assetLoaded();
                         }).catch(err => {
                             console.error(`Failed to load or parse GIF: ${name}`, err);
-                            this.assetLoaded(); // Still count as loaded to not halt the game
+                            this.assetLoaded();
                         });
                 } else {
-                    // Load regular image
                     const asset = new Image();
                     this.assets[name] = { image: asset, width: 0, height: 0, isGif: false };
                     asset.onload = () => {
@@ -269,20 +277,7 @@
                     if (!asset) return;
                     if (asset.isGif) {
                         const frame = asset.frames[asset.frameIndex];
-                        // Create an ImageData object from the patch
-                        const frameImageData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
-                        // Draw it onto an off-screen canvas, then onto the main canvas
-                        const tempCanvas = document.createElement('canvas');
-                        tempCanvas.width = this.width;
-                        tempCanvas.height = this.height;
-                        const tempCtx = tempCanvas.getContext('2d');
-                        // Create a temporary canvas to draw the patch on
-                        const patchCanvas = document.createElement('canvas');
-                        patchCanvas.width = frame.dims.width;
-                        patchCanvas.height = frame.dims.height;
-                        patchCanvas.getContext('2d').putImageData(frameImageData, 0, 0);
-                        // Now draw the patch canvas onto the main canvas, scaled
-                        ctx.drawImage(patchCanvas, this.x + frame.dims.left, this.y + frame.dims.top, this.width, this.height);
+                        ctx.drawImage(frame.canvas, this.x, this.y, this.width, this.height);
                     } else if (asset.image.complete) {
                         ctx.drawImage(asset.image, this.x, this.y, this.width, this.height);
                     }
@@ -517,7 +512,6 @@
         }
 
         function startGameActions(event) {
-            if (event && event.target.closest('#theme-toggle')) return;
             if (!audioInitialized) initializeAudio();
             if (gameOver) {
                 resetGame();
