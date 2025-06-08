@@ -71,7 +71,7 @@
             color: #DDDDDD;
         }
 
-        /* --- NEW: Theme Toggle Button Styles --- */
+        /* --- Theme Toggle Button Styles --- */
         #theme-toggle {
             position: fixed;
             bottom: 20px;
@@ -98,7 +98,6 @@
         .light-theme #moon-icon { display: block; fill: #333; }
         .dark-theme #sun-icon { display: block; fill: #FFF; }
         .dark-theme #moon-icon { display: none; }
-        /* --- END: New Styles --- */
     </style>
 </head>
 <body>
@@ -115,7 +114,6 @@
 
     <div id="messageBox"></div>
 
-    <!-- NEW: Theme Toggle Button HTML -->
     <div id="theme-toggle" title="Toggle Theme">
         <svg viewBox="0 0 24 24">
             <!-- Moon Icon -->
@@ -124,7 +122,6 @@
             <path id="sun-icon" d="M12 3a1 1 0 011 1v2a1 1 0 11-2 0V4a1 1 0 011-1zM4.929 4.929a1 1 0 011.414 0l1.414 1.414a1 1 0 01-1.414 1.414L4.929 6.343a1 1 0 010-1.414zM21 12a1 1 0 01-1 1h-2a1 1 0 110-2h2a1 1 0 011 1zM16.243 16.243a1 1 0 011.414 0l1.414 1.414a1 1 0 01-1.414 1.414l-1.414-1.414a1 1 0 010-1.414zM12 19a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM7.757 16.243a1 1 0 010 1.414l-1.414 1.414a1 1 0 01-1.414-1.414l1.414-1.414a1 1 0 011.414 0zM4 12a1 1 0 01-1 1H1a1 1 0 110-2h2a1 1 0 011 1zM7.757 7.757a1 1 0 010-1.414L6.343 4.929a1 1 0 111.414-1.414l1.414 1.414a1 1 0 01-1.414 1.414zM12 7a5 5 0 100 10 5 5 0 000-10z"></path>
         </svg>
     </div>
-    <!-- END: New HTML -->
 
 
     <script>
@@ -141,7 +138,7 @@
 
         const messageBox = document.getElementById('messageBox');
         const bodyElement = document.body;
-        const themeToggle = document.getElementById('theme-toggle'); // NEW: Get theme toggle button
+        const themeToggle = document.getElementById('theme-toggle');
 
         // --- Sound Effects Setup (Tone.js) ---
         let audioInitialized = false;
@@ -178,16 +175,17 @@
         // --- End Customizable Link URL ---
         
         // --- Asset URLs ---
+        // UPDATED: Swapped which asset is the GIF
         const imageUrls = {
             palopsee: 'https://palopsee.netlify.app/palopsee.png',
             palopseeDark: 'https://palopsee.netlify.app/palopsee-modified.png',
             background: 'https://palopsee.netlify.app/background.png',
-            asteroid: '/alien1.png',
+            alienShip: '/alien1.png',
             powerUp: '/star1.png'
         };
 
         const gifUrls = {
-            alienShip: '/asteroid1.gif' // The alien ship is now an animated GIF
+            asteroid: '/asteroid1.gif'
         };
 
         // --- Define Target Sizes for Game Elements ---
@@ -213,12 +211,12 @@
 
             loadAsset(name, src) {
                 this.totalAssets++;
-                const asset = new Image(); // Use Image object for both PNG and GIF
+                const asset = new Image();
                 asset.src = src;
                 asset.onload = () => this.assetLoaded(name, src);
                 asset.onerror = () => {
                     console.error(`Failed to load asset: ${name} at ${src}`);
-                    this.assetLoaded(name, src); // Still count as loaded to not halt the game
+                    this.assetLoaded(name, src);
                 };
                 this.assets[name] = asset;
             },
@@ -288,7 +286,6 @@
                 }
             },
             jump() {
-                // Prevent jumping from theme toggle clicks
                 if (event && event.target === themeToggle) return;
                 if (!this.isJumping && !gameOver && gameStarted) { 
                     this.isJumping = true;
@@ -322,7 +319,7 @@
                 width = asteroidTargetWidth; 
                 height = asteroidTargetHeight; 
                 yPos = verticalCenter - height / 2 + (Math.random() * player.height - player.height / 2);
-            } else { // alienShip
+            } else { 
                 img = assetManager.get('alienShip');
                 width = alienShipTargetWidth; 
                 height = alienShipTargetHeight; 
@@ -577,7 +574,6 @@
         }
 
         function startGameActions(event) {
-            // NEW: Prevent starting game if the theme toggle was the target
             if (event && event.target.closest('#theme-toggle')) {
                 return;
             }
@@ -599,7 +595,6 @@
             startGameActions(e); 
         }, { passive: false }); 
 
-        // --- UPDATED: Theme Functions ---
         function applyTheme(isDark) { 
             isDarkMode = isDark; 
             currentTheme = isDarkMode ? themes.dark : themes.light; 
@@ -615,7 +610,6 @@
         }
 
         themeToggle.addEventListener('click', toggleTheme);
-        // --- END: Updated Theme Functions ---
 
         function resizeAndRedrawAll() { 
             backgroundCanvas.width = window.innerWidth;
@@ -687,7 +681,6 @@
             Object.keys(imageUrls).forEach(name => assetManager.loadAsset(name, imageUrls[name]));
             Object.keys(gifUrls).forEach(name => assetManager.loadAsset(name, gifUrls[name]));
 
-            // Sets the initial theme based on system preference
             const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
             applyTheme(darkModeMediaQuery.matches); 
         }
