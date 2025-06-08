@@ -4,13 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Palopsee's Space Run</title>
+    <!-- FIX: Added a default favicon to prevent 404 errors in the console -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <!-- GIF parsing library for improved animation control -->
-    <script src="https://unpkg.com/gifuct-js/dist/gifuct-js.js"></script>
     <style>
+        /* All CSS remains the same, but placing it in the head ensures styles are applied before content renders */
         body {
             font-family: 'Pixelify Sans', 'Inter', sans-serif; 
             margin: 0;
@@ -21,14 +19,15 @@
             height: 100vh; 
             width: 100vw;
         }
-        #backgroundCanvas {
+        #backgroundCanvas, #gameCanvas {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%; 
             height: 100%;
-            z-index: -1; 
         }
+        #backgroundCanvas { z-index: -1; }
+        #gameCanvas { z-index: 0; touch-action: none; }
         #headerLinkContainer {
             position: fixed; 
             top: 20px;
@@ -39,16 +38,6 @@
         #headerPalopseeCanvas {
             border-radius: 4px; 
             cursor: pointer;
-        }
-        canvas#gameCanvas { 
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%; 
-            height: 100%;
-            touch-action: none; 
-            display: block; 
-            z-index: 0; 
         }
         #messageBox {
             position: fixed;
@@ -63,7 +52,6 @@
             z-index: 1000; 
             display: none; 
             font-size: 16px;
-            font-family: 'Pixelify Sans', 'Inter', sans-serif; 
         }
     </style>
 </head>
@@ -81,10 +69,12 @@
 
     <div id="messageBox"></div>
 
+    <!-- FIX: All scripts moved to the end of the body to ensure correct loading order -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://unpkg.com/gifuct-js/dist/gifuct-js.js"></script>
     <script>
-    // FIX: Wrap entire script in a DOMContentLoaded event listener.
-    // This ensures all external libraries (like gifuct-js) are loaded before the game script runs.
-    window.addEventListener('DOMContentLoaded', () => {
+        // No longer need DOMContentLoaded wrapper as scripts are at the end of the body
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
         const backgroundCanvas = document.getElementById('backgroundCanvas');
@@ -96,22 +86,19 @@
 
         const messageBox = document.getElementById('messageBox');
         
-        // --- Sound Effects Setup ---
         let audioInitialized = false;
         let jumpSynth, scoreSynth, gameOverSynth, powerUpSynth;
 
         function initializeAudio() {
-            // FIX: Ensure Tone.js is started by a user gesture.
             if (Tone.context.state !== 'running') {
                 Tone.start();
             }
             if (audioInitialized) return;
-
+            audioInitialized = true;
             jumpSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.01, release: 0.1 } }).toDestination();
             scoreSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.05, sustain: 0, release: 0.1 } }).toDestination();
             gameOverSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.1 } }).toDestination();
             powerUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 } }).toDestination();
-            audioInitialized = true;
         }
         
         function playJumpSound() { if (audioInitialized) {jumpSynth.volume.value = -12; jumpSynth.triggerAttackRelease('C5', '8n', Tone.now());} }
@@ -119,10 +106,7 @@
         function playGameOverSound() { if (audioInitialized) {gameOverSynth.volume.value = -8; gameOverSynth.triggerAttackRelease('16n', Tone.now());} }
         function playPowerUpSound() { if (audioInitialized) {powerUpSynth.volume.value = -10; powerUpSynth.triggerAttackRelease('G5', '8n', Tone.now());} }
         
-        // --- Customizable Link URL ---
-        let customHeaderLinkUrl = "https://palopsee.univer.se/"; 
-        
-        // --- Game Scaling Constants ---
+        const customHeaderLinkUrl = "https://palopsee.univer.se/"; 
         const PLAYER_SCALE_HEIGHT = 44;
         const OBSTACLE_SCALE_HEIGHT = 42;
         const POWERUP_SCALE_HEIGHT = 28;
@@ -130,7 +114,6 @@
         const BACKGROUND_TILE_WIDTH = 200;
         const BACKGROUND_TILE_HEIGHT = 150;
         
-        // --- Asset URLs ---
         const imageUrls = {
             palopsee: 'https://palopsee.netlify.app/palopsee.png',
             background: 'https://palopsee.netlify.app/background.png',
@@ -141,7 +124,6 @@
             asteroid: '/asteroid1.gif'
         };
 
-        // --- Asset Manager (Now with GIF parsing) ---
         const assetManager = {
             assets: {}, totalAssets: 0, loadedAssets: 0, onAllAssetsLoaded: null,
             loadAsset(name, src, isGif = false) {
@@ -150,8 +132,7 @@
                     fetch(src)
                         .then(resp => resp.arrayBuffer())
                         .then(buff => {
-                            // The 'GIF' constructor is now available because of DOMContentLoaded
-                            const gif = new GIF(buff);
+                            const gif = new GIF(buff); // GIF constructor is now guaranteed to exist
                             const frames = gif.decompressFrames(true);
                             const frameCanvases = frames.map(frame => {
                                 const canvas = document.createElement('canvas');
@@ -161,14 +142,10 @@
                                 canvas.getContext('2d').putImageData(imageData, 0, 0);
                                 return { canvas, delay: frame.delay };
                             });
-
                             this.assets[name] = { 
-                                isGif: true, 
-                                frames: frameCanvases, 
-                                width: frames[0].dims.width, 
-                                height: frames[0].dims.height,
-                                frameIndex: 0,
-                                frameTime: 0
+                                isGif: true, frames: frameCanvases, 
+                                width: frames[0].dims.width, height: frames[0].dims.height,
+                                frameIndex: 0, frameTime: 0
                             };
                             this.assetLoaded();
                         }).catch(err => {
@@ -200,23 +177,15 @@
         let backgroundPattern = null; 
         let backgroundOffsetX = 0; 
         
-        // Game variables
         const highScoreKey = 'palopseeGameHighScore'; 
-        let score = 0;
-        let previousScoreForSound = 0; 
+        let score = 0, previousScoreForSound = 0;
         const scoreMilestoneInterval = 30; 
         let powerUpSpawnedForCurrentMilestone = false; 
         let highScore = 0;
-        let gameSpeed = 5;
-        let gameSpeedIncreaseFactor = 0.002;
-        let gameOver = false;
-        let gameStarted = false;
-        let assetsReady = false;
-        let animationFrameId;
-        let lastFrameTime = 0;
-
-        let gameCanvasWidth; 
-        let gameCanvasHeight; 
+        let gameSpeed = 5, gameSpeedIncreaseFactor = 0.002;
+        let gameOver = false, gameStarted = false, assetsReady = false;
+        let animationFrameId, lastFrameTime = 0;
+        let gameCanvasWidth, gameCanvasHeight; 
 
         const gameFont = "'Pixelify Sans', 'Inter', sans-serif"; 
 
@@ -227,9 +196,9 @@
             draw() {
                 const palopseeAsset = assetManager.get('palopsee');
                 if (!palopseeAsset || !palopseeAsset.image.complete) return;
-                
-                if (this.isInvincible && this.invincibilityFrames++ % 10 < 5) { /* Flicker */ } 
-                else ctx.drawImage(palopseeAsset.image, this.x, this.y, this.width, this.height);
+                if (this.isInvincible && this.invincibilityFrames++ % 10 < 5) {} else {
+                    ctx.drawImage(palopseeAsset.image, this.x, this.y, this.width, this.height);
+                }
             },
             jump() {
                 if (!this.isJumping && !gameOver && gameStarted) { 
@@ -251,8 +220,7 @@
             }
         };
 
-        let obstacles = [];
-        let powerUps = []; 
+        let obstacles = [], powerUps = []; 
 
         function getScaledDimensions(assetName, baseHeight) {
             const assetInfo = assetManager.get(assetName);
@@ -279,8 +247,7 @@
             }
 
             obstacles.push({ 
-                x: gameCanvasWidth, y: yPos, width: scaledDims.width, height: scaledDims.height, 
-                assetName: assetName,
+                x: gameCanvasWidth, y: yPos, width: scaledDims.width, height: scaledDims.height, assetName: assetName,
                 draw() { 
                     const asset = assetManager.get(this.assetName);
                     if (!asset) return;
@@ -345,7 +312,6 @@
                 createPowerUp();
                 powerUpSpawnedForCurrentMilestone = true; 
             }
-
             for (let i = powerUps.length - 1; i >= 0; i--) {
                 const pUp = powerUps[i];
                 pUp.update();
@@ -389,7 +355,7 @@
                 bgCtx.fillRect(-pOffsetX, 0, backgroundCanvas.width + bgPatternCanvas.width, backgroundCanvas.height); 
                 bgCtx.restore();
             } else {
-                bgCtx.fillStyle = '#ffffff'; // Fallback background
+                bgCtx.fillStyle = '#ffffff';
                 bgCtx.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
             }
         }
@@ -423,19 +389,12 @@
         }
 
         function resetGame() {
-            score = 0;
-            previousScoreForSound = 0; 
+            score = 0; previousScoreForSound = 0; 
             powerUpSpawnedForCurrentMilestone = false; 
-            gameSpeed = 5; 
-            gameOver = false;
-            gameStarted = false; 
-            obstacles = [];
-            powerUps = []; 
-            player.dy = 0;
-            player.isJumping = false;
-            player.isInvincible = false;
+            gameSpeed = 5; gameOver = false; gameStarted = false; 
+            obstacles = []; powerUps = []; 
+            player.dy = 0; player.isJumping = false; player.isInvincible = false;
             player.y = player.restingY;
-            
             messageBox.style.display = 'none';
         }
 
@@ -511,12 +470,9 @@
             const scaledPlayerDims = getScaledDimensions('palopsee', PLAYER_SCALE_HEIGHT);
             player.width = scaledPlayerDims.width;
             player.height = scaledPlayerDims.height;
-            
             resizeAndRedrawAll(); 
-            
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             gameLoop();
-            
             if (!gameStarted && !gameOver) showMessage('Ready to Fly!', 2000);
         }
 
@@ -570,9 +526,7 @@
             Object.keys(gifUrls).forEach(name => assetManager.loadAsset(name, gifUrls[name], true));
         }
 
-        // Initialize the game
         initGame(); 
-    });
     </script>
 </body>
 </html>
