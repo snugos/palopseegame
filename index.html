@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- NEW: GIF parsing library for improved animation control -->
+    <script src="https://unpkg.com/gifuct-js/dist/gifuct-js.js"></script>
     <style>
         body {
             font-family: 'Pixelify Sans', 'Inter', sans-serif; 
@@ -130,20 +132,43 @@
             asteroid: '/asteroid1.gif'
         };
 
-        // --- Asset Manager ---
+        // --- Asset Manager (Now with GIF parsing) ---
         const assetManager = {
             assets: {}, totalAssets: 0, loadedAssets: 0, onAllAssetsLoaded: null,
-            loadAsset(name, src) {
+            loadAsset(name, src, isGif = false) {
                 this.totalAssets++;
-                const asset = new Image();
-                this.assets[name] = { image: asset, width: 0, height: 0 };
-                asset.onload = () => {
-                    this.assets[name].width = asset.naturalWidth;
-                    this.assets[name].height = asset.naturalHeight;
-                    this.assetLoaded();
-                };
-                asset.onerror = () => { this.assetLoaded(); };
-                asset.src = src;
+                if (isGif) {
+                    // Fetch and parse GIF
+                    fetch(src)
+                        .then(resp => resp.arrayBuffer())
+                        .then(buff => {
+                            const gif = new GIF(buff);
+                            const frames = gif.decompressFrames(true);
+                            this.assets[name] = { 
+                                isGif: true, 
+                                frames: frames, 
+                                width: frames[0].dims.width, 
+                                height: frames[0].dims.height,
+                                frameIndex: 0,
+                                frameTime: 0
+                            };
+                            this.assetLoaded();
+                        }).catch(err => {
+                            console.error(`Failed to load or parse GIF: ${name}`, err);
+                            this.assetLoaded(); // Still count as loaded to not halt the game
+                        });
+                } else {
+                    // Load regular image
+                    const asset = new Image();
+                    this.assets[name] = { image: asset, width: 0, height: 0, isGif: false };
+                    asset.onload = () => {
+                        this.assets[name].width = asset.naturalWidth;
+                        this.assets[name].height = asset.naturalHeight;
+                        this.assetLoaded();
+                    };
+                    asset.onerror = () => { this.assetLoaded(); };
+                    asset.src = src;
+                }
             },
             assetLoaded() {
                 this.loadedAssets++;
@@ -171,6 +196,7 @@
         let gameStarted = false;
         let assetsReady = false;
         let animationFrameId;
+        let lastFrameTime = 0;
 
         let gameCanvasWidth; 
         let gameCanvasHeight; 
@@ -236,8 +262,31 @@
             }
 
             obstacles.push({ 
-                x: gameCanvasWidth, y: yPos, width: scaledDims.width, height: scaledDims.height, image: assetInfo.image, 
-                draw() { if (this.image.complete) ctx.drawImage(this.image, this.x, this.y, this.width, this.height); }, 
+                x: gameCanvasWidth, y: yPos, width: scaledDims.width, height: scaledDims.height, 
+                assetName: assetName,
+                draw() { 
+                    const asset = assetManager.get(this.assetName);
+                    if (!asset) return;
+                    if (asset.isGif) {
+                        const frame = asset.frames[asset.frameIndex];
+                        // Create an ImageData object from the patch
+                        const frameImageData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
+                        // Draw it onto an off-screen canvas, then onto the main canvas
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = this.width;
+                        tempCanvas.height = this.height;
+                        const tempCtx = tempCanvas.getContext('2d');
+                        // Create a temporary canvas to draw the patch on
+                        const patchCanvas = document.createElement('canvas');
+                        patchCanvas.width = frame.dims.width;
+                        patchCanvas.height = frame.dims.height;
+                        patchCanvas.getContext('2d').putImageData(frameImageData, 0, 0);
+                        // Now draw the patch canvas onto the main canvas, scaled
+                        ctx.drawImage(patchCanvas, this.x + frame.dims.left, this.y + frame.dims.top, this.width, this.height);
+                    } else if (asset.image.complete) {
+                        ctx.drawImage(asset.image, this.x, this.y, this.width, this.height);
+                    }
+                }, 
                 update() { this.x -= gameSpeed; } 
             });
         }
@@ -385,14 +434,33 @@
             
             messageBox.style.display = 'none';
         }
+
+        function updateGifAnimations(deltaTime) {
+            for (const key in assetManager.assets) {
+                const asset = assetManager.assets[key];
+                if (asset.isGif && asset.frames.length > 0) {
+                    asset.frameTime += deltaTime;
+                    const currentFrameInfo = asset.frames[asset.frameIndex];
+                    if (asset.frameTime >= currentFrameInfo.delay) {
+                        asset.frameIndex = (asset.frameIndex + 1) % asset.frames.length;
+                        asset.frameTime = 0;
+                    }
+                }
+            }
+        }
         
-        function gameLoop() {
+        function gameLoop(currentTime) {
             animationFrameId = requestAnimationFrame(gameLoop);
+            if (!lastFrameTime) lastFrameTime = currentTime;
+            const deltaTime = currentTime - lastFrameTime;
+            lastFrameTime = currentTime;
 
             backgroundOffsetX -= gameSpeed * (gameStarted && !gameOver ? 1 : 0);
             drawScrollingFullScreenBackground(); 
             ctx.clearRect(0, 0, gameCanvasWidth, gameCanvasHeight); 
             
+            updateGifAnimations(deltaTime);
+
             if (gameStarted && !gameOver) {
                 player.update();
                 handleObstacles(); 
@@ -418,7 +486,6 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('Game Over!', gameCanvasWidth / 2, gameCanvasHeight / 2 - 30);
                 ctx.font = `20px ${gameFont}`; 
-                ctx.fillStyle = '#FFFFFF'; 
                 ctx.fillText(`Score: ${score}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 10);
                 ctx.fillText(`High Score: ${highScore}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 40);
                 ctx.font = `16px ${gameFont}`; 
@@ -496,8 +563,8 @@
             if (savedHighScore) highScore = parseInt(savedHighScore, 10);
 
             assetManager.onAllAssetsLoaded = assetsReadyCallback;
-            Object.keys(imageUrls).forEach(name => assetManager.loadAsset(name, imageUrls[name]));
-            Object.keys(gifUrls).forEach(name => assetManager.loadAsset(name, gifUrls[name]));
+            Object.keys(imageUrls).forEach(name => assetManager.loadAsset(name, imageUrls[name], false));
+            Object.keys(gifUrls).forEach(name => assetManager.loadAsset(name, gifUrls[name], true));
         }
 
         initGame(); 
