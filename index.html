@@ -37,9 +37,8 @@
             border-radius: 4px; 
             cursor: pointer;
         }
-        #messageBox {
+        #messageBox, #leaderboardButton {
             position: fixed;
-            top: 80px; 
             left: 50%;
             transform: translateX(-50%);
             background-color: #4A90E2; 
@@ -48,8 +47,64 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             z-index: 1000; 
-            display: none; 
             font-size: 16px;
+        }
+        #messageBox { top: 80px; display: none; }
+        #leaderboardButton { bottom: 20px; cursor: pointer; }
+
+        /* Leaderboard Modal Styles */
+        #leaderboardModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        #leaderboardContent {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        #leaderboardContent h2 {
+            margin-top: 0;
+            font-size: 24px;
+        }
+        #leaderboardList {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        #leaderboardList li {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+        #leaderboardList li:nth-child(odd) {
+            background-color: #f0f0f0;
+        }
+        #leaderboardList .player-name {
+            font-weight: 600;
+        }
+         #closeLeaderboard {
+            margin-top: 16px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background-color: #e24a4a;
+            color: white;
+            cursor: pointer;
+            border: none;
         }
     </style>
 </head>
@@ -66,11 +121,59 @@
     <canvas id="gameCanvas"></canvas> 
 
     <div id="messageBox"></div>
+    <button id="leaderboardButton">Leaderboard</button>
+
+    <!-- Leaderboard Modal HTML -->
+    <div id="leaderboardModal">
+        <div id="leaderboardContent">
+            <h2>Top Scores</h2>
+            <ul id="leaderboardList">
+                <!-- Scores will be populated by JavaScript -->
+            </ul>
+            <button id="closeLeaderboard">Close</button>
+        </div>
+    </div>
 
     <!-- Scripts at the end of the body to ensure correct loading order -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Config (will be provided by the environment)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                console.log("Authenticated with user ID:", currentUser.uid);
+                listenForLeaderboardUpdates();
+            } else {
+                signInAnonymously(auth).catch((error) => {
+                    console.error("Anonymous sign-in failed:", error);
+                });
+            }
+        });
+
+        // Game Code Starts Here
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
         const backgroundCanvas = document.getElementById('backgroundCanvas');
@@ -81,14 +184,16 @@
         const headerLink = document.getElementById('headerLink');
 
         const messageBox = document.getElementById('messageBox');
+        const leaderboardButton = document.getElementById('leaderboardButton');
+        const leaderboardModal = document.getElementById('leaderboardModal');
+        const closeLeaderboardButton = document.getElementById('closeLeaderboard');
+        const leaderboardList = document.getElementById('leaderboardList');
         
         let audioInitialized = false;
         let jumpSynth, scoreSynth, gameOverSynth, powerUpSynth;
 
         function initializeAudio() {
-            if (Tone.context.state !== 'running') {
-                Tone.start();
-            }
+            if (Tone.context.state !== 'running') Tone.start();
             if (audioInitialized) return;
             audioInitialized = true;
             jumpSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.01, release: 0.1 } }).toDestination();
@@ -97,10 +202,10 @@
             powerUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 } }).toDestination();
         }
         
-        function playJumpSound() { if (audioInitialized) {jumpSynth.volume.value = -12; jumpSynth.triggerAttackRelease('C5', '8n', Tone.now());} }
-        function playScoreSound() { if (audioInitialized) {scoreSynth.volume.value = -18; scoreSynth.triggerAttackRelease('A5', '16n', Tone.now());} }
-        function playGameOverSound() { if (audioInitialized) {gameOverSynth.volume.value = -8; gameOverSynth.triggerAttackRelease('16n', Tone.now());} }
-        function playPowerUpSound() { if (audioInitialized) {powerUpSynth.volume.value = -10; powerUpSynth.triggerAttackRelease('G5', '8n', Tone.now());} }
+        function playJumpSound() { if (audioInitialized) jumpSynth.triggerAttackRelease('C5', '8n', Tone.now()); }
+        function playScoreSound() { if (audioInitialized) scoreSynth.triggerAttackRelease('A5', '16n', Tone.now()); }
+        function playGameOverSound() { if (audioInitialized) gameOverSynth.triggerAttackRelease('16n', Tone.now()); }
+        function playPowerUpSound() { if (audioInitialized) powerUpSynth.triggerAttackRelease('G5', '8n', Tone.now()); }
         
         const customHeaderLinkUrl = "https://palopsee.univer.se/"; 
         const PLAYER_SCALE_HEIGHT = 44;
@@ -118,7 +223,6 @@
             asteroid: 'https://palopsee.netlify.app/asteroid1.gif'
         };
 
-        // Simplified Asset Manager
         const assetManager = {
             assets: {}, totalAssets: 0, loadedAssets: 0, onAllAssetsLoaded: null,
             loadAsset(name, src) {
@@ -145,19 +249,15 @@
             get(name) { return this.assets[name]; }
         };
 
-        let bgPatternCanvas = null; 
-        let backgroundPattern = null; 
-        let backgroundOffsetX = 0; 
-        
-        const highScoreKey = 'palopseeGameHighScore'; 
+        let bgPatternCanvas = null, backgroundPattern = null, backgroundOffsetX = 0; 
+        const highScoreKey = 'palopseeGameHighScore_local'; // Local high score key
         let score = 0, previousScoreForSound = 0;
         const scoreMilestoneInterval = 30; 
         let powerUpSpawnedForCurrentMilestone = false; 
         let highScore = 0;
         let gameSpeed = 5, gameSpeedIncreaseFactor = 0.002;
         let gameOver = false, gameStarted = false, assetsReady = false;
-        let animationFrameId;
-        let gameCanvasWidth, gameCanvasHeight; 
+        let animationFrameId, gameCanvasWidth, gameCanvasHeight; 
 
         const gameFont = "'Pixelify Sans', 'Inter', sans-serif"; 
 
@@ -220,7 +320,7 @@
 
             obstacles.push({ 
                 x: gameCanvasWidth, y: yPos, width: scaledDims.width, height: scaledDims.height,
-                asset: assetInfo, // Store a reference to the asset info
+                asset: assetInfo,
                 draw() { 
                     if (this.asset.image.complete) {
                         ctx.drawImage(this.asset.image, this.x, this.y, this.width, this.height);
@@ -344,15 +444,39 @@
             }
         }
 
-        function setGameOver() {
+        async function setGameOver() {
             gameOver = true;
             gameStarted = false;
             player.isInvincible = false;
+
             if (score > highScore) {
                 highScore = score;
                 localStorage.setItem(highScoreKey, highScore);
+                await submitScore(score);
             }
             playGameOverSound(); 
+        }
+
+        async function submitScore(newScore) {
+            if (!currentUser) return;
+
+            const userDocRef = doc(db, "scores", currentUser.uid);
+            const userDoc = await getDoc(userDocRef);
+            const existingScore = userDoc.exists() ? userDoc.data().score : 0;
+            
+            if (newScore > existingScore) {
+                let name = userDoc.exists() ? userDoc.data().name : null;
+                if (!name) {
+                    name = prompt("New high score! Enter your name for the leaderboard:", "Player");
+                    if (!name) name = "Anonymous"; // Default name if prompt is cancelled
+                }
+                await setDoc(userDocRef, {
+                    name: name,
+                    score: newScore,
+                    userId: currentUser.uid
+                }, { merge: true });
+                showMessage("High score saved to leaderboard!");
+            }
         }
 
         function resetGame() {
@@ -387,7 +511,7 @@
             ctx.fillStyle = '#333333'; 
             ctx.textAlign = 'left';
             ctx.fillText(`Score: ${score}`, 10, 25);
-            ctx.fillText(`High Score: ${highScore}`, 10, 50);
+            ctx.fillText(`Local High Score: ${highScore}`, 10, 50);
 
             if (gameOver) {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'; 
@@ -424,7 +548,7 @@
             if (!gameStarted && !gameOver) showMessage('Ready to Fly!', 2000);
         }
 
-        function startGameActions(event) {
+        function startGameActions() {
             if (!audioInitialized) initializeAudio();
             if (gameOver) {
                 resetGame();
@@ -440,12 +564,32 @@
             }
         }
 
-        window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'ArrowUp')) { e.preventDefault(); startGameActions(e); } });
+        function listenForLeaderboardUpdates() {
+            const scoresQuery = query(collection(db, "scores"), orderBy("score", "desc"), limit(10));
+            onSnapshot(scoresQuery, (snapshot) => {
+                leaderboardList.innerHTML = ''; // Clear previous list
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="player-name">${data.name}</span><span>${data.score}</span>`;
+                    leaderboardList.appendChild(li);
+                });
+            });
+        }
+
+        window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') startGameActions(); });
         document.body.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#headerLinkContainer')) return; 
-            e.preventDefault(); 
-            startGameActions(e); 
+            if (e.target.closest('#headerLinkContainer') || e.target.closest('#leaderboardButton')) return; 
+            startGameActions(); 
         }, { passive: false }); 
+
+        leaderboardButton.addEventListener('click', () => {
+            leaderboardModal.style.display = 'flex';
+        });
+
+        closeLeaderboardButton.addEventListener('click', () => {
+            leaderboardModal.style.display = 'none';
+        });
 
         function resizeAndRedrawAll() { 
             gameCanvasWidth = window.innerWidth; 
@@ -470,7 +614,6 @@
             if (savedHighScore) highScore = parseInt(savedHighScore, 10);
 
             assetManager.onAllAssetsLoaded = assetsReadyCallback;
-            // FIX: Load all assets, including GIFs, through the same simplified function.
             Object.keys(imageUrls).forEach(name => assetManager.loadAsset(name, imageUrls[name]));
         }
 
