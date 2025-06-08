@@ -90,13 +90,26 @@
         }
         #leaderboardList li {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            align-items: flex-start;
             padding: 8px 12px;
-            border-radius: 0;
             border-bottom: 1px solid #DDDDDD;
+            text-align: left;
         }
-        #leaderboardList li:nth-child(odd) {
-            background-color: #FFFFFF;
+        #leaderboardList li .score-line {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+        }
+        #leaderboardList .player-name {
+            font-weight: 600;
+        }
+        /* NEW: Style for the AI-generated banter */
+        #leaderboardList .banter {
+            font-style: italic;
+            font-size: 12px;
+            color: #555;
+            margin-top: 4px;
         }
          #closeLeaderboard {
             margin-top: 16px;
@@ -130,7 +143,7 @@
 
     <div id="leaderboardModal">
         <div id="leaderboardContent">
-            <h2>Top Scores</h2>
+            <h2>✨ Top Scores ✨</h2>
             <ul id="leaderboardList"></ul>
             <button id="closeLeaderboard">Close</button>
         </div>
@@ -141,7 +154,6 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-analytics.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
@@ -156,7 +168,6 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
@@ -210,9 +221,9 @@
         function playPowerUpSound() { if (audioInitialized) powerUpSynth.triggerAttackRelease('G5', '8n', Tone.now()); }
         
         const customHeaderLinkUrl = "https://palopsee.univer.se/"; 
-        const PLAYER_SCALE_HEIGHT = 44;
-        const OBSTACLE_SCALE_HEIGHT = 42;
-        const POWERUP_SCALE_HEIGHT = 28;
+        const PLAYER_SCALE_HEIGHT = 48;
+        const OBSTACLE_SCALE_HEIGHT = 46;
+        const POWERUP_SCALE_HEIGHT = 32;
         const HEADER_ICON_SIZE = 40;
         const BACKGROUND_TILE_WIDTH = 200;
         const BACKGROUND_TILE_HEIGHT = 150;
@@ -260,6 +271,10 @@
         let gameSpeed = 5, gameSpeedIncreaseFactor = 0.002;
         let gameOver = false, gameStarted = false, assetsReady = false;
         let animationFrameId, gameCanvasWidth, gameCanvasHeight; 
+
+        // --- Gemini API and Game Over Message State ---
+        let geminiGameOverMessage = '';
+        let isGeneratingMessage = false;
 
         const cheatCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
         let userInputSequence = [];
@@ -490,7 +505,40 @@
             }
         }
 
+        // --- NEW: Gemini API Call Function ---
+        async function generateGeminiText(prompt) {
+            const apiKey = ""; // Leave blank
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }]
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    console.error("Gemini API Error:", response.status, await response.text());
+                    return "Error generating text.";
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                }
+                return "Couldn't think of anything clever.";
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                return "My circuits are buzzing...";
+            }
+        }
+
+
         async function setGameOver() {
+            if (gameOver) return; // Prevent multiple calls
             gameOver = true;
             gameStarted = false;
             player.isInvincible = false;
@@ -502,6 +550,15 @@
                 await submitScore(score);
             }
             playGameOverSound(); 
+
+            // NEW: Generate Game Over message
+            isGeneratingMessage = true;
+            geminiGameOverMessage = '✨ Thinking of a witty remark...';
+            const prompt = `Generate a short, witty, encouraging, or funny message for a player who just got a score of ${score} in a space-themed endless runner game. The character's name is Palopsee. Be slightly sarcastic. Keep it under 20 words.`;
+            generateGeminiText(prompt).then(text => {
+                geminiGameOverMessage = `✨ ${text.replace(/"/g, '')}`; // Remove quotes
+                isGeneratingMessage = false;
+            });
         }
 
         async function submitScore(newScore) {
@@ -517,10 +574,16 @@
                     name = prompt("New high score! Enter your name for the leaderboard:", "Player");
                     if (!name) name = "Anonymous";
                 }
+                
+                // NEW: Generate banter for the leaderboard
+                const prompt = `Generate a short, space-themed, boastful quote for a player named "${name}" who just set a high score of ${newScore}. The quote should be in the first person. Maximum 15 words.`;
+                const banter = await generateGeminiText(prompt);
+
                 await setDoc(userDocRef, {
                     name: name,
                     score: newScore,
-                    userId: currentUser.uid
+                    userId: currentUser.uid,
+                    banter: banter.replace(/"/g, '') // Save banter without quotes
                 }, { merge: true });
                 showMessage("High score saved to leaderboard!");
             }
@@ -536,6 +599,7 @@
             player.isInvincible = false;
             player.y = player.restingY;
             messageBox.style.display = 'none';
+            geminiGameOverMessage = '';
         }
 
         function gameLoop() {
@@ -569,12 +633,17 @@
                 ctx.font = `40px ${gameFont}`; 
                 ctx.fillStyle = '#FFFFFF'; 
                 ctx.textAlign = 'center';
-                ctx.fillText('Game Over!', gameCanvasWidth / 2, gameCanvasHeight / 2 - 30);
+                ctx.fillText('Game Over!', gameCanvasWidth / 2, gameCanvasHeight / 2 - 60);
                 ctx.font = `20px ${gameFont}`; 
-                ctx.fillText(`Score: ${score}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 10);
-                ctx.fillText(`High Score: ${highScore}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 40);
+                ctx.fillText(`Score: ${score}`, gameCanvasWidth / 2, gameCanvasHeight / 2 - 20);
+                ctx.fillText(`High Score: ${highScore}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 10);
+                
+                // NEW: Draw Gemini Message
+                ctx.font = `italic 16px ${gameFont}`;
+                ctx.fillText(geminiGameOverMessage, gameCanvasWidth / 2, gameCanvasHeight / 2 + 50);
+                
                 ctx.font = `16px ${gameFont}`; 
-                ctx.fillText('Tap or Press Space/Up to Restart', gameCanvasWidth / 2, gameCanvasHeight / 2 + 70);
+                ctx.fillText('Tap or Press Space/Up to Restart', gameCanvasWidth / 2, gameCanvasHeight / 2 + 90);
             } else if (!gameStarted && assetsReady) {
                 ctx.font = `20px ${gameFont}`; 
                 ctx.textAlign = 'center';
@@ -621,7 +690,8 @@
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     const li = document.createElement('li');
-                    li.innerHTML = `<span class="player-name">${data.name}</span><span>${data.score}</span>`;
+                    li.innerHTML = `<div class="score-line"><span class="player-name">${data.name}</span><span>${data.score}</span></div>
+                                    ${data.banter ? `<div class="banter">"${data.banter}"</div>` : ''}`;
                     leaderboardList.appendChild(li);
                 });
             }, (error) => {
