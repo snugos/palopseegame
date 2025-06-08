@@ -70,7 +70,6 @@
     <!-- Scripts at the end of the body to ensure correct loading order -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <!-- REMOVED: gifuct-js library is no longer needed -->
     <script>
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
@@ -114,9 +113,8 @@
         const imageUrls = {
             palopsee: 'https://palopsee.netlify.app/palopsee.png',
             background: 'https://palopsee.netlify.app/background.png',
-            alienShip: '/alien1.png',
-            powerUp: '/star1.png',
-            // FIX: The GIF is now just another image to load
+            alienShip: 'https://palopsee.netlify.app/alien1.png',
+            powerUp: 'https://palopsee.netlify.app/star1.png',
             asteroid: 'https://palopsee.netlify.app/asteroid1.gif'
         };
 
@@ -126,8 +124,6 @@
             loadAsset(name, src) {
                 this.totalAssets++;
                 const asset = new Image();
-                // FIX: No special fetch logic. All assets, including GIFs, are loaded as Image objects.
-                // This avoids CORS issues related to fetch.
                 this.assets[name] = { image: asset, width: 0, height: 0 };
                 asset.onload = () => {
                     this.assets[name].width = asset.naturalWidth;
@@ -160,7 +156,7 @@
         let highScore = 0;
         let gameSpeed = 5, gameSpeedIncreaseFactor = 0.002;
         let gameOver = false, gameStarted = false, assetsReady = false;
-        let animationFrameId, lastFrameTime = 0;
+        let animationFrameId;
         let gameCanvasWidth, gameCanvasHeight; 
 
         const gameFont = "'Pixelify Sans', 'Inter', sans-serif"; 
@@ -226,8 +222,6 @@
                 x: gameCanvasWidth, y: yPos, width: scaledDims.width, height: scaledDims.height,
                 asset: assetInfo, // Store a reference to the asset info
                 draw() { 
-                    // FIX: Draw the image directly from the stored reference.
-                    // The browser will handle GIF animation automatically.
                     if (this.asset.image.complete) {
                         ctx.drawImage(this.asset.image, this.x, this.y, this.width, this.height);
                     }
