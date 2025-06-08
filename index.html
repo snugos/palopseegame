@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <!-- NEW: GIF parsing library for improved animation control -->
+    <!-- GIF parsing library for improved animation control -->
     <script src="https://unpkg.com/gifuct-js/dist/gifuct-js.js"></script>
     <style>
         body {
@@ -81,6 +81,9 @@
     <div id="messageBox"></div>
 
     <script>
+    // FIX: Wrap entire script in a DOMContentLoaded event listener.
+    // This ensures all external libraries (like gifuct-js) are loaded before the game script runs.
+    window.addEventListener('DOMContentLoaded', () => {
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
         const backgroundCanvas = document.getElementById('backgroundCanvas');
@@ -97,7 +100,12 @@
         let jumpSynth, scoreSynth, gameOverSynth, powerUpSynth;
 
         function initializeAudio() {
-            if (Tone.context.state !== 'running') Tone.start();
+            // FIX: Ensure Tone.js is started by a user gesture.
+            if (Tone.context.state !== 'running') {
+                Tone.start();
+            }
+            if (audioInitialized) return;
+
             jumpSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.01, release: 0.1 } }).toDestination();
             scoreSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.05, sustain: 0, release: 0.1 } }).toDestination();
             gameOverSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.1 } }).toDestination();
@@ -141,9 +149,9 @@
                     fetch(src)
                         .then(resp => resp.arrayBuffer())
                         .then(buff => {
+                            // The 'GIF' constructor is now available because of DOMContentLoaded
                             const gif = new GIF(buff);
                             const frames = gif.decompressFrames(true);
-                            // Create a full canvas for each frame
                             const frameCanvases = frames.map(frame => {
                                 const canvas = document.createElement('canvas');
                                 canvas.width = frame.dims.width;
@@ -561,7 +569,9 @@
             Object.keys(gifUrls).forEach(name => assetManager.loadAsset(name, gifUrls[name], true));
         }
 
+        // Initialize the game
         initGame(); 
+    });
     </script>
 </body>
 </html>
