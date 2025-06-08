@@ -155,7 +155,6 @@
             measurementId: "G-E1F0FXCS56"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
         const auth = getAuth(app);
@@ -205,13 +204,12 @@
             powerUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 } }).toDestination();
         }
         
-        // FIX: Added a cooldown to prevent sound from being triggered too rapidly.
         let jumpSoundCooldown = false;
         function playJumpSound() { 
             if (audioInitialized && !jumpSoundCooldown) {
                 jumpSynth.triggerAttackRelease('C5', '8n', Tone.now());
                 jumpSoundCooldown = true;
-                setTimeout(() => { jumpSoundCooldown = false; }, 100); // 100ms cooldown
+                setTimeout(() => { jumpSoundCooldown = false; }, 100);
             }
         }
         function playScoreSound() { if (audioInitialized) scoreSynth.triggerAttackRelease('A5', '16n', Tone.now()); }
@@ -261,7 +259,7 @@
         };
 
         let bgPatternCanvas = null, backgroundPattern = null, backgroundOffsetX = 0; 
-        const highScoreKey = 'palopseeGameHighScore_local'; // Local high score key
+        const highScoreKey = 'palopseeGameHighScore_local';
         let score = 0, previousScoreForSound = 0;
         const scoreMilestoneInterval = 30; 
         let powerUpSpawnedForCurrentMilestone = false; 
@@ -269,6 +267,11 @@
         let gameSpeed = 5, gameSpeedIncreaseFactor = 0.002;
         let gameOver = false, gameStarted = false, assetsReady = false;
         let animationFrameId, gameCanvasWidth, gameCanvasHeight; 
+
+        // --- NEW: Cheat Code Variables ---
+        const cheatCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+        let userInputSequence = [];
+        let cheatActive = false;
 
         const gameFont = "'Pixelify Sans', 'Inter', sans-serif"; 
 
@@ -279,7 +282,10 @@
             draw() {
                 const palopseeAsset = assetManager.get('palopsee');
                 if (!palopseeAsset || !palopseeAsset.image.complete) return;
-                if (this.isInvincible && this.invincibilityFrames++ % 10 < 5) {} else {
+                
+                // Keep invincibility flicker even with cheat code active
+                if (this.isInvincible && this.invincibilityFrames++ % 10 < 5) {} 
+                else {
                     ctx.drawImage(palopseeAsset.image, this.x, this.y, this.width, this.height);
                 }
             },
@@ -398,7 +404,10 @@
                     player.invincibilityFrames = 0; 
                     playPowerUpSound();
                     powerUps.splice(i, 1); 
-                    setTimeout(() => { player.isInvincible = false; }, 5000); 
+                    // Only set timeout if cheat is not active
+                    if (!cheatActive) {
+                        setTimeout(() => { player.isInvincible = false; }, 5000); 
+                    }
                 }
                 if (pUp.x + pUp.width < 0) powerUps.splice(i, 1);
             }
@@ -479,7 +488,7 @@
                 let name = userDoc.exists() ? userDoc.data().name : null;
                 if (!name) {
                     name = prompt("New high score! Enter your name for the leaderboard:", "Player");
-                    if (!name) name = "Anonymous"; // Default name if prompt is cancelled
+                    if (!name) name = "Anonymous";
                 }
                 await setDoc(userDocRef, {
                     name: name,
@@ -495,7 +504,10 @@
             powerUpSpawnedForCurrentMilestone = false; 
             gameSpeed = 5; gameOver = false; gameStarted = false; 
             obstacles = []; powerUps = []; 
-            player.dy = 0; player.isJumping = false; player.isInvincible = false;
+            player.dy = 0; player.isJumping = false; 
+            // Reset cheat state on new game
+            cheatActive = false;
+            player.isInvincible = false;
             player.y = player.restingY;
             messageBox.style.display = 'none';
         }
@@ -578,7 +590,7 @@
         function listenForLeaderboardUpdates() {
             const scoresQuery = query(collection(db, "scores"), orderBy("score", "desc"), limit(10));
             onSnapshot(scoresQuery, (snapshot) => {
-                leaderboardList.innerHTML = ''; // Clear previous list
+                leaderboardList.innerHTML = '';
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     const li = document.createElement('li');
@@ -591,9 +603,29 @@
             });
         }
 
-        window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') startGameActions(); });
+        window.addEventListener('keydown', (e) => { 
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                startGameActions();
+            }
+
+            // --- NEW: Cheat Code Logic ---
+            userInputSequence.push(e.key);
+            if (userInputSequence.length > cheatCode.length) {
+                userInputSequence.shift();
+            }
+
+            if (JSON.stringify(userInputSequence) === JSON.stringify(cheatCode)) {
+                cheatActive = true;
+                player.isInvincible = true;
+                showMessage('Cheat Activated: Invincibility!', 5000);
+                userInputSequence = []; // Reset sequence after activation
+            }
+        });
+
         document.body.addEventListener('touchstart', (e) => {
             if (e.target.closest('#headerLinkContainer') || e.target.closest('#leaderboardButton')) return; 
+            e.preventDefault();
             startGameActions(); 
         }, { passive: false }); 
 
