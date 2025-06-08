@@ -37,14 +37,16 @@
             border-radius: 4px; 
             cursor: pointer;
         }
+        /* UPDATED: Black & White UI Styles */
         #messageBox, #leaderboardButton {
             position: fixed;
             left: 50%;
             transform: translateX(-50%);
-            background-color: #4A90E2; 
+            background-color: #000000; 
             color: white;
             padding: 10px 20px;
             border-radius: 8px;
+            border: 1px solid #FFFFFF;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             z-index: 1000; 
             font-size: 16px;
@@ -52,14 +54,13 @@
         #messageBox { top: 80px; display: none; }
         #leaderboardButton { bottom: 20px; cursor: pointer; }
 
-        /* Leaderboard Modal Styles */
         #leaderboardModal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: rgba(0, 0, 0, 0.75);
             z-index: 2000;
             display: none;
             justify-content: center;
@@ -73,10 +74,12 @@
             max-width: 400px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             text-align: center;
+            border: 2px solid #000;
         }
         #leaderboardContent h2 {
             margin-top: 0;
             font-size: 24px;
+            color: #000;
         }
         #leaderboardList {
             list-style: none;
@@ -84,27 +87,30 @@
             margin: 20px 0;
             max-height: 300px;
             overflow-y: auto;
+            color: #333;
         }
         #leaderboardList li {
             display: flex;
             justify-content: space-between;
             padding: 8px 12px;
-            border-radius: 6px;
+            border-radius: 0;
+            border-bottom: 1px solid #DDDDDD;
         }
         #leaderboardList li:nth-child(odd) {
-            background-color: #f0f0f0;
-        }
-        #leaderboardList .player-name {
-            font-weight: 600;
+            background-color: #FFFFFF;
         }
          #closeLeaderboard {
             margin-top: 16px;
             padding: 8px 16px;
             border-radius: 8px;
-            background-color: #e24a4a;
+            background-color: #333333;
             color: white;
             cursor: pointer;
             border: none;
+            transition: background-color 0.2s;
+        }
+        #closeLeaderboard:hover {
+            background-color: #000000;
         }
     </style>
 </head>
@@ -123,22 +129,17 @@
     <div id="messageBox"></div>
     <button id="leaderboardButton">Leaderboard</button>
 
-    <!-- Leaderboard Modal HTML -->
     <div id="leaderboardModal">
         <div id="leaderboardContent">
             <h2>Top Scores</h2>
-            <ul id="leaderboardList">
-                <!-- Scores will be populated by JavaScript -->
-            </ul>
+            <ul id="leaderboardList"></ul>
             <button id="closeLeaderboard">Close</button>
         </div>
     </div>
 
-    <!-- Scripts at the end of the body to ensure correct loading order -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-analytics.js";
@@ -165,26 +166,19 @@
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
-                console.log("Authenticated with user ID:", currentUser.uid);
                 listenForLeaderboardUpdates();
             } else {
-                signInAnonymously(auth).catch((error) => {
-                    console.error("Anonymous sign-in failed:", error);
-                });
+                signInAnonymously(auth).catch((error) => console.error("Anonymous sign-in failed:", error));
             }
         });
 
-
-        // Game Code Starts Here
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
         const backgroundCanvas = document.getElementById('backgroundCanvas');
         const bgCtx = backgroundCanvas.getContext('2d'); 
-
         const headerPalopseeCanvas = document.getElementById('headerPalopseeCanvas');
         const headerPalopseeCtx = headerPalopseeCanvas.getContext('2d');
         const headerLink = document.getElementById('headerLink');
-
         const messageBox = document.getElementById('messageBox');
         const leaderboardButton = document.getElementById('leaderboardButton');
         const leaderboardModal = document.getElementById('leaderboardModal');
@@ -268,10 +262,43 @@
         let gameOver = false, gameStarted = false, assetsReady = false;
         let animationFrameId, gameCanvasWidth, gameCanvasHeight; 
 
-        // --- NEW: Cheat Code Variables ---
         const cheatCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
         let userInputSequence = [];
         let cheatActive = false;
+
+        let particles = [];
+        function createParticles(x, y, count, colors) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    size: Math.random() * 3 + 1,
+                    speedX: (Math.random() - 0.5) * 3,
+                    speedY: (Math.random() - 0.5) * 3,
+                    life: Math.random() * 30 + 30,
+                    color: colors[Math.floor(Math.random() * colors.length)]
+                });
+            }
+        }
+
+        function handleParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.life--;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life / 60;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+        }
 
         const gameFont = "'Pixelify Sans', 'Inter', sans-serif"; 
 
@@ -283,7 +310,6 @@
                 const palopseeAsset = assetManager.get('palopsee');
                 if (!palopseeAsset || !palopseeAsset.image.complete) return;
                 
-                // Keep invincibility flicker even with cheat code active
                 if (this.isInvincible && this.invincibilityFrames++ % 10 < 5) {} 
                 else {
                     ctx.drawImage(palopseeAsset.image, this.x, this.y, this.width, this.height);
@@ -294,6 +320,7 @@
                     this.isJumping = true;
                     this.dy = -this.jumpStrength;
                     playJumpSound(); 
+                    createParticles(this.x + this.width / 2, this.y + this.height, 5, ['#FFFFFF', '#333333']);
                 }
             },
             update() {
@@ -403,8 +430,8 @@
                     player.isInvincible = true;
                     player.invincibilityFrames = 0; 
                     playPowerUpSound();
+                    createParticles(pUp.x + pUp.width / 2, pUp.y + pUp.height / 2, 20, ['#FFFFFF', '#333333']);
                     powerUps.splice(i, 1); 
-                    // Only set timeout if cheat is not active
                     if (!cheatActive) {
                         setTimeout(() => { player.isInvincible = false; }, 5000); 
                     }
@@ -468,6 +495,7 @@
             gameOver = true;
             gameStarted = false;
             player.isInvincible = false;
+            createParticles(player.x + player.width / 2, player.y + player.height / 2, 30, ['#333333']);
 
             if (score > highScore) {
                 highScore = score;
@@ -505,7 +533,6 @@
             gameSpeed = 5; gameOver = false; gameStarted = false; 
             obstacles = []; powerUps = []; 
             player.dy = 0; player.isJumping = false; 
-            // Reset cheat state on new game
             cheatActive = false;
             player.isInvincible = false;
             player.y = player.restingY;
@@ -529,6 +556,7 @@
             player.draw();
             obstacles.forEach(obs => obs.draw());
             powerUps.forEach(pUp => pUp.draw());
+            handleParticles(); 
 
             ctx.font = `16px ${gameFont}`; 
             ctx.fillStyle = '#333333'; 
@@ -609,7 +637,6 @@
                 startGameActions();
             }
 
-            // --- NEW: Cheat Code Logic ---
             userInputSequence.push(e.key);
             if (userInputSequence.length > cheatCode.length) {
                 userInputSequence.shift();
@@ -619,7 +646,7 @@
                 cheatActive = true;
                 player.isInvincible = true;
                 showMessage('Cheat Activated: Invincibility!', 5000);
-                userInputSequence = []; // Reset sequence after activation
+                userInputSequence = [];
             }
         });
 
