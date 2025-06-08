@@ -70,6 +70,35 @@
             background-color: #121212; 
             color: #DDDDDD;
         }
+
+        /* --- NEW: Theme Toggle Button Styles --- */
+        #theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1001; /* Ensure it's above other elements */
+            cursor: pointer;
+            background-color: rgba(128, 128, 128, 0.2);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+        }
+        #theme-toggle:hover {
+            background-color: rgba(128, 128, 128, 0.4);
+        }
+        #theme-toggle svg {
+            width: 24px;
+            height: 24px;
+        }
+        .light-theme #sun-icon { display: none; }
+        .light-theme #moon-icon { display: block; fill: #333; }
+        .dark-theme #sun-icon { display: block; fill: #FFF; }
+        .dark-theme #moon-icon { display: none; }
+        /* --- END: New Styles --- */
     </style>
 </head>
 <body>
@@ -86,6 +115,17 @@
 
     <div id="messageBox"></div>
 
+    <!-- NEW: Theme Toggle Button HTML -->
+    <div id="theme-toggle" title="Toggle Theme">
+        <svg viewBox="0 0 24 24">
+            <!-- Moon Icon -->
+            <path id="moon-icon" d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+            <!-- Sun Icon -->
+            <path id="sun-icon" d="M12 3a1 1 0 011 1v2a1 1 0 11-2 0V4a1 1 0 011-1zM4.929 4.929a1 1 0 011.414 0l1.414 1.414a1 1 0 01-1.414 1.414L4.929 6.343a1 1 0 010-1.414zM21 12a1 1 0 01-1 1h-2a1 1 0 110-2h2a1 1 0 011 1zM16.243 16.243a1 1 0 011.414 0l1.414 1.414a1 1 0 01-1.414 1.414l-1.414-1.414a1 1 0 010-1.414zM12 19a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM7.757 16.243a1 1 0 010 1.414l-1.414 1.414a1 1 0 01-1.414-1.414l1.414-1.414a1 1 0 011.414 0zM4 12a1 1 0 01-1 1H1a1 1 0 110-2h2a1 1 0 011 1zM7.757 7.757a1 1 0 010-1.414L6.343 4.929a1 1 0 111.414-1.414l1.414 1.414a1 1 0 01-1.414 1.414zM12 7a5 5 0 100 10 5 5 0 000-10z"></path>
+        </svg>
+    </div>
+    <!-- END: New HTML -->
+
 
     <script>
         const gameCanvas = document.getElementById('gameCanvas');
@@ -101,6 +141,7 @@
 
         const messageBox = document.getElementById('messageBox');
         const bodyElement = document.body;
+        const themeToggle = document.getElementById('theme-toggle'); // NEW: Get theme toggle button
 
         // --- Sound Effects Setup (Tone.js) ---
         let audioInitialized = false;
@@ -135,15 +176,19 @@
         // --- Customizable Link URL ---
         let customHeaderLinkUrl = "https://palopsee.univer.se/"; 
         // --- End Customizable Link URL ---
+        
+        // --- Asset URLs ---
+        const imageUrls = {
+            palopsee: 'https://palopsee.netlify.app/palopsee.png',
+            palopseeDark: 'https://palopsee.netlify.app/palopsee-modified.png',
+            background: 'https://palopsee.netlify.app/background.png',
+            asteroid: '/alien1.png',
+            powerUp: '/star1.png'
+        };
 
-        // --- Customizable Image URLs ---
-        let palopseeImageUrl = 'https://palopsee.netlify.app/palopsee.png'; 
-        let palopseeDarkImageUrl = 'https://palopsee.netlify.app/palopsee-modified.png';
-        let backgroundImageUrl = 'https://palopsee.netlify.app/background.png'; 
-        let asteroidImageUrl = '/alien1.png'; 
-        let alienShipImageUrl = '/asteroid1.gif'; 
-        let powerUpImageUrl = '/star1.png'; 
-        // --- End Customizable Image URLs ---
+        const gifUrls = {
+            alienShip: '/asteroid1.gif' // The alien ship is now an animated GIF
+        };
 
         // --- Define Target Sizes for Game Elements ---
         const playerTargetWidth = 50; 
@@ -156,27 +201,46 @@
         const powerUpTargetHeight = 24;
         const headerPalopseeTargetWidth = 40; 
         const headerPalopseeTargetHeight = 40;
-        // --- End Target Sizes ---
-
-        // --- Define Target Size for Background Tiles ---
         const backgroundTileWidth = 200; 
         const backgroundTileHeight = 150; 
-        // --- End Background Tile Size ---
+
+        // --- Asset Manager for Loading Images and GIFs ---
+        const assetManager = {
+            assets: {},
+            totalAssets: 0,
+            loadedAssets: 0,
+            onAllAssetsLoaded: null,
+
+            loadAsset(name, src) {
+                this.totalAssets++;
+                const asset = new Image(); // Use Image object for both PNG and GIF
+                asset.src = src;
+                asset.onload = () => this.assetLoaded(name, src);
+                asset.onerror = () => {
+                    console.error(`Failed to load asset: ${name} at ${src}`);
+                    this.assetLoaded(name, src); // Still count as loaded to not halt the game
+                };
+                this.assets[name] = asset;
+            },
+
+            assetLoaded(name, src) {
+                this.loadedAssets++;
+                console.log(`Loaded ${name} from ${src}`);
+                if (this.loadedAssets === this.totalAssets && typeof this.onAllAssetsLoaded === 'function') {
+                    this.onAllAssetsLoaded();
+                }
+            },
+
+            get(name) {
+                return this.assets[name];
+            }
+        };
 
 
-        let palopseeImg = new Image();
-        let palopseeDarkImg = new Image(); 
-        let asteroidImg = new Image();
-        let alienShipImg = new Image();
-        let powerUpImg = new Image();
-        let bgImg = new Image(); 
         let bgPatternCanvas = null; 
         let backgroundPattern = null; 
         let backgroundOffsetX = 0; 
-
-        let imagesLoaded = 0;
-        const totalImages = 6; 
-
+        
         // Game variables
         const highScoreKey = 'palopseeGameHighScore'; 
         let score = 0;
@@ -188,11 +252,9 @@
         let gameSpeedIncreaseFactor = 0.002;
         let gameOver = false;
         let gameStarted = false;
+        let assetsReady = false;
         let animationFrameId;
 
-        // groundHeight is no longer a visual line, but a conceptual offset from bottom for player's lowest point
-        // const groundHeight = 50; // This can be adjusted if needed, or removed if player floats freely
-        
         let gameCanvasWidth; 
         let gameCanvasHeight; 
 
@@ -208,30 +270,26 @@
             jumpStrength: 12, 
             gravity: 0.7,   
             isJumping: false,
-            restingY: 0, // Palopsee's centered resting Y position (top of player)
+            restingY: 0,
             isInvincible: false, 
             invincibilityFrames: 0, 
             draw() {
-                let currentPalopseeImageToDraw = isDarkMode ? palopseeDarkImg : palopseeImg;
+                const palopseeAsset = isDarkMode ? assetManager.get('palopseeDark') : assetManager.get('palopsee');
 
-                if (currentPalopseeImageToDraw.complete && currentPalopseeImageToDraw.naturalWidth > 0) {
+                if (palopseeAsset && palopseeAsset.complete && palopseeAsset.naturalWidth > 0) {
                     if (this.isInvincible) {
                         this.invincibilityFrames++;
-                        if (this.invincibilityFrames % 10 < 5) { 
-                            return; 
-                        }
+                        if (this.invincibilityFrames % 10 < 5) return; 
                     }
-                    ctx.drawImage(currentPalopseeImageToDraw, this.x, this.y, this.width, this.height);
+                    ctx.drawImage(palopseeAsset, this.x, this.y, this.width, this.height);
                 } else {
-                    if (palopseeImg.complete && palopseeImg.naturalWidth > 0) {
-                         ctx.drawImage(palopseeImg, this.x, this.y, this.width, this.height);
-                    } else { 
-                        ctx.fillStyle = currentTheme.scoreText; 
-                        ctx.fillRect(this.x, this.y, this.width, this.height);
-                    }
+                    ctx.fillStyle = currentTheme.scoreText; 
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
                 }
             },
             jump() {
+                // Prevent jumping from theme toggle clicks
+                if (event && event.target === themeToggle) return;
                 if (!this.isJumping && !gameOver && gameStarted) { 
                     this.isJumping = true;
                     this.dy = -this.jumpStrength;
@@ -243,8 +301,7 @@
                     this.y += this.dy;
                     this.dy += this.gravity;
                 }
-                // "Land" back at the restingY position
-                if (this.y >= this.restingY && this.dy > 0) { // Check if moving downwards and at/below restingY
+                if (this.y >= this.restingY && this.dy > 0) {
                     this.y = this.restingY;
                     this.isJumping = false;
                     this.dy = 0;
@@ -261,27 +318,23 @@
             const verticalCenter = gameCanvasHeight / 2;
 
             if (obstacleType === 'asteroid') {
-                img = asteroidImg;
+                img = assetManager.get('asteroid');
                 width = asteroidTargetWidth; 
                 height = asteroidTargetHeight; 
-                // Position asteroid around the vertical center, Palopsee needs to jump "over" its center
-                yPos = verticalCenter - height / 2 + (Math.random() * player.height - player.height / 2); // Slight vertical variation
+                yPos = verticalCenter - height / 2 + (Math.random() * player.height - player.height / 2);
             } else { // alienShip
-                img = alienShipImg;
+                img = assetManager.get('alienShip');
                 width = alienShipTargetWidth; 
                 height = alienShipTargetHeight; 
-                
-                // Position alien ship to fly above Palopsee's resting head height
-                const alienShipClearance = 10; // Clearance above player's head
+                const alienShipClearance = 10;
                 yPos = player.restingY - alienShipClearance - height;
-
-                if (yPos < 10) yPos = 10; // Ensure it's not off-screen top
+                if (yPos < 10) yPos = 10;
             }
 
-            const newObstacle = { 
+            obstacles.push({ 
                 x: gameCanvasWidth, y: yPos, width, height, type: obstacleType, image: img, 
                 draw() { 
-                    if (this.image.complete && this.image.naturalWidth > 0) {
+                    if (this.image && this.image.complete && this.image.naturalWidth > 0) {
                         ctx.drawImage(this.image, this.x, this.y, this.width, this.height); 
                     } else {
                         ctx.fillStyle = (this.type === 'asteroid') ? '#A9A9A9' : '#90EE90'; 
@@ -289,21 +342,19 @@
                     }
                 }, 
                 update() { this.x -= gameSpeed; } 
-            };
-            obstacles.push(newObstacle);
+            });
         }
 
         function createPowerUp() {
             const verticalCenter = gameCanvasHeight / 2;
             const newPowerUp = {
                 x: gameCanvasWidth,
-                // Position power-up around vertical center, with some randomness
                 y: verticalCenter - powerUpTargetHeight / 2 + (Math.random() * (player.height * 2) - player.height), 
                 width: powerUpTargetWidth,
                 height: powerUpTargetHeight,
-                image: powerUpImg,
+                image: assetManager.get('powerUp'),
                 draw() { 
-                     if (this.image.complete && this.image.naturalWidth > 0) {
+                     if (this.image && this.image.complete && this.image.naturalWidth > 0) {
                         ctx.drawImage(this.image, this.x, this.y, this.width, this.height); 
                      } else {
                         ctx.fillStyle = '#FFD700'; 
@@ -312,11 +363,8 @@
                 },
                 update() { this.x -= gameSpeed; }
             };
-            // Ensure power-up is within reasonable vertical bounds
             if (newPowerUp.y < 20) newPowerUp.y = 20;
             if (newPowerUp.y + newPowerUp.height > gameCanvasHeight - 20) newPowerUp.y = gameCanvasHeight - 20 - newPowerUp.height;
-
-
             powerUps.push(newPowerUp);
         }
 
@@ -335,24 +383,10 @@
                 obs.update();
                 obs.draw();
 
-                let collided = false;
-                if (
+                if ( !player.isInvincible &&
                     player.x < obs.x + obs.width && player.x + player.width > obs.x &&
                     player.y < obs.y + obs.height && player.y + player.height > obs.y
                 ) {
-                    if (obs.type === 'asteroid') {
-                        collided = true;
-                    } else if (obs.type === 'alienShip') {
-                        // Collision with alien ship if Palopsee is jumping into it, 
-                        // or if Palopsee is at restingY and alien ship is at that level.
-                        // Since alien ships are positioned above resting Palopsee, collision primarily if jumping.
-                        if (player.isJumping || player.y + player.height > obs.y && player.y < obs.y + obs.height) {
-                             collided = true;
-                        }
-                    }
-                }
-
-                if (collided && !player.isInvincible) { 
                     setGameOver();
                     return; 
                 }
@@ -394,9 +428,7 @@
                     player.invincibilityFrames = 0; 
                     playPowerUpSound();
                     powerUps.splice(i, 1); 
-                    setTimeout(() => {
-                        player.isInvincible = false;
-                    }, 5000); 
+                    setTimeout(() => { player.isInvincible = false; }, 5000); 
                 }
 
                 if (pUp.x + pUp.width < 0) {
@@ -405,67 +437,60 @@
             }
         }
         
-        function createBackgroundPatternTile(){if(bgImg.complete&&bgImg.naturalWidth>0){bgPatternCanvas=document.createElement("canvas");bgPatternCanvas.width=backgroundTileWidth;bgPatternCanvas.height=backgroundTileHeight;const e=bgPatternCanvas.getContext("2d");e.drawImage(bgImg,0,0,backgroundTileWidth,backgroundTileHeight)}else bgPatternCanvas=null}
+        function createBackgroundPatternTile() {
+            const bgImg = assetManager.get('background');
+            if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+                bgPatternCanvas = document.createElement("canvas");
+                bgPatternCanvas.width = backgroundTileWidth;
+                bgPatternCanvas.height = backgroundTileHeight;
+                const patternCtx = bgPatternCanvas.getContext("2d");
+                patternCtx.drawImage(bgImg, 0, 0, backgroundTileWidth, backgroundTileHeight);
+            } else {
+                bgPatternCanvas = null;
+            }
+        }
         
         function createActualPattern(){ 
-            if(bgPatternCanvas && bgCtx) {
-                backgroundPattern=bgCtx.createPattern(bgPatternCanvas,"repeat");
+            if (bgPatternCanvas && bgCtx) {
+                backgroundPattern = bgCtx.createPattern(bgPatternCanvas, "repeat");
             } else {
-                backgroundPattern=null;
+                backgroundPattern = null;
             }
         }
 
         function drawScrollingFullScreenBackground(){ 
-            if(!bgCtx) return;
-            bgCtx.clearRect(0,0,backgroundCanvas.width,backgroundCanvas.height);
-            if(backgroundPattern&&bgPatternCanvas){
+            if (!bgCtx) return;
+            bgCtx.clearRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
+            
+            if (backgroundPattern) {
                 bgCtx.save();
-                bgCtx.globalAlpha=.1;
-                let e=backgroundOffsetX%bgPatternCanvas.width;
-                e>0&&(e-=bgPatternCanvas.width);
-                bgCtx.translate(e,0);
-                bgCtx.fillStyle=backgroundPattern;
-                bgCtx.fillRect(0,0,backgroundCanvas.width+bgPatternCanvas.width,backgroundCanvas.height); 
+                bgCtx.globalAlpha = 0.1;
+                let patternOffsetX = backgroundOffsetX % bgPatternCanvas.width;
+                if (patternOffsetX > 0) patternOffsetX -= bgPatternCanvas.width;
+                bgCtx.translate(patternOffsetX, 0);
+                bgCtx.fillStyle = backgroundPattern;
+                bgCtx.fillRect(0, 0, backgroundCanvas.width + bgPatternCanvas.width, backgroundCanvas.height); 
                 bgCtx.restore();
-            } else if(bgImg.complete&&bgImg.naturalWidth>0){
-                if(!bgPatternCanvas) createBackgroundPatternTile();
-                if(bgPatternCanvas&&!backgroundPattern) createActualPattern();
-                if(backgroundPattern&&bgPatternCanvas){
-                    bgCtx.save();
-                    bgCtx.globalAlpha=.1;
-                    let e=backgroundOffsetX%bgPatternCanvas.width;
-                    e>0&&(e-=bgPatternCanvas.width);
-                    bgCtx.translate(e,0);
-                    bgCtx.fillStyle=backgroundPattern;
-                    bgCtx.fillRect(0,0,backgroundCanvas.width+bgPatternCanvas.width,backgroundCanvas.height);
-                    bgCtx.restore();
-                }else{
-                    bgCtx.save();
-                    bgCtx.globalAlpha=.1;
-                    bgCtx.drawImage(bgImg,0,0,backgroundCanvas.width,backgroundCanvas.height);
-                    bgCtx.restore();
-                }
-            }else{
-                bgCtx.fillStyle=currentTheme.canvasFallbackBg;
-                bgCtx.fillRect(0,0,backgroundCanvas.width,backgroundCanvas.height)
+            } else {
+                bgCtx.fillStyle = currentTheme.canvasFallbackBg;
+                bgCtx.fillRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
             }
         }
         
-        function drawGround(){}
-        function showMessage(e,t=3e3){messageBox.textContent=e;messageBox.style.display="block";setTimeout(()=>{messageBox.style.display="none"},t)}
+        function showMessage(msg, duration = 3000) {
+            messageBox.textContent = msg;
+            messageBox.style.display = "block";
+            setTimeout(() => { messageBox.style.display = "none" }, duration);
+        }
         
-
         function drawHeaderPalopsee() {
             if (!headerPalopseeCtx) return;
             
-            let currentHeaderImage = isDarkMode ? palopseeDarkImg : palopseeImg;
+            const headerImg = isDarkMode ? assetManager.get('palopseeDark') : assetManager.get('palopsee');
+            headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
 
-            if (currentHeaderImage.complete && currentHeaderImage.naturalWidth > 0) {
-                 headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-                 headerPalopseeCtx.drawImage(currentHeaderImage, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-            } else if (palopseeImg.complete && palopseeImg.naturalWidth > 0) { 
-                 headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-                 headerPalopseeCtx.drawImage(palopseeImg, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
+            if (headerImg && headerImg.complete && headerImg.naturalWidth > 0) {
+                 headerPalopseeCtx.drawImage(headerImg, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
             } else {
                  headerPalopseeCtx.fillStyle = currentTheme.canvasFallbackBg;
                  headerPalopseeCtx.fillRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
@@ -477,9 +502,7 @@
             gameOver = true;
             gameStarted = false;
             player.isInvincible = false; 
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
             playGameOverSound(); 
             
             ctx.fillStyle = currentTheme.gameOverOverlay; 
@@ -513,36 +536,18 @@
             gameStarted = false; 
             obstacles = [];
             powerUps = []; 
-            
             player.dy = 0;
             player.isJumping = false;
             player.isInvincible = false;
-            // Player y and restingY will be set in resizeAndRedrawAll
             
+            resizeAndRedrawAll();
             messageBox.style.display = 'none';
-            
-            imagesLoaded = 0; 
-            bgPatternCanvas = null; 
-            backgroundPattern = null; 
-            backgroundOffsetX = 0; 
-            
-            palopseeImg.src = ""; palopseeImg.src = palopseeImageUrl;
-            palopseeDarkImg.src = ""; palopseeDarkImg.src = palopseeDarkImageUrl; 
-            asteroidImg.src = ""; asteroidImg.src = asteroidImageUrl;
-            alienShipImg.src = ""; alienShipImg.src = alienShipImageUrl;
-            powerUpImg.src = ""; powerUpImg.src = powerUpImageUrl;
-            bgImg.src = ""; bgImg.src = backgroundImageUrl;
         }
         
         function gameLoop() {
             if (gameOver) return;
 
             backgroundOffsetX -= gameSpeed;
-            if (bgPatternCanvas && bgPatternCanvas.width > 0) {
-                 if (backgroundOffsetX <= -bgPatternCanvas.width) {
-                    backgroundOffsetX += bgPatternCanvas.width; 
-                }
-            }
             drawScrollingFullScreenBackground(); 
 
             ctx.clearRect(0, 0, gameCanvasWidth, gameCanvasHeight); 
@@ -560,41 +565,25 @@
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-        function onImageLoad() {
-            imagesLoaded++;
-            if (this === bgImg && this.complete && this.naturalWidth > 0) {
-                createBackgroundPatternTile();
-                createActualPattern(); 
-            }
-            if ((this === palopseeImg || this === palopseeDarkImg) && palopseeImg.complete && palopseeDarkImg.complete && palopseeImg.naturalWidth > 0 && palopseeDarkImg.naturalWidth > 0) {
-                 drawHeaderPalopsee(); 
-            }
-
-            if (imagesLoaded === totalImages) {
-                if (!gameStarted && !gameOver) {
-                    showMessage('Ready to Fly!', 2000);
-                } else if (gameOver) { }
-                 resizeAndRedrawAll(); 
+        function assetsReadyCallback() {
+            assetsReady = true;
+            createBackgroundPatternTile();
+            createActualPattern();
+            drawHeaderPalopsee();
+            resizeAndRedrawAll();
+            if (!gameStarted && !gameOver) {
+                showMessage('Ready to Fly!', 2000);
             }
         }
 
-        function onImageError(e) { 
-            console.error("Error loading image:", e.target.src); 
-            const imageName = e.target.src.split('/').pop() || 'asset';
-            let corsMessage = "";
-            if (e.target.src.includes("netlify.app")) { 
-                corsMessage = " Check server CORS settings if this is your image.";
+        function startGameActions(event) {
+            // NEW: Prevent starting game if the theme toggle was the target
+            if (event && event.target.closest('#theme-toggle')) {
+                return;
             }
-            showMessage(`Error loading ${imageName}. Using fallback.${corsMessage}`, 7000);
-            onImageLoad(); 
-        }
-        
-        function startGameActions() {
-            if (!audioInitialized) { 
-                initializeAudio();
-            }
+            if (!audioInitialized) initializeAudio();
             if (gameOver) { resetGame(); return; }
-            if (!gameStarted && imagesLoaded === totalImages) {
+            if (!gameStarted && assetsReady) {
                 gameStarted = true;
                 if (animationFrameId) cancelAnimationFrame(animationFrameId); 
                 gameLoop();
@@ -602,110 +591,82 @@
             player.jump();
         }
 
-        window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'ArrowUp')) { e.preventDefault(); startGameActions(); } });
+        window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'ArrowUp')) { e.preventDefault(); startGameActions(e); } });
         
         document.body.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#headerLinkContainer')) {
-                return; 
-            }
+            if (e.target.closest('#headerLinkContainer')) return; 
             e.preventDefault(); 
-            startGameActions(); 
+            startGameActions(e); 
         }, { passive: false }); 
 
-        function applyTheme(isDarkSystem) { 
-            isDarkMode = isDarkSystem; 
+        // --- UPDATED: Theme Functions ---
+        function applyTheme(isDark) { 
+            isDarkMode = isDark; 
             currentTheme = isDarkMode ? themes.dark : themes.light; 
             bodyElement.className = isDarkMode ? 'dark-theme' : 'light-theme'; 
-            drawHeaderPalopsee(); 
-            resizeAndRedrawAll(); 
+            if(assetsReady) {
+                drawHeaderPalopsee(); 
+                resizeAndRedrawAll(); 
+            }
         }
-        const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        darkModeMediaQuery.addEventListener('change', (e) => applyTheme(e.matches));
+
+        function toggleTheme() {
+            applyTheme(!isDarkMode);
+        }
+
+        themeToggle.addEventListener('click', toggleTheme);
+        // --- END: Updated Theme Functions ---
 
         function resizeAndRedrawAll() { 
-            // Resize Fullscreen Background Canvas
             backgroundCanvas.width = window.innerWidth;
             backgroundCanvas.height = window.innerHeight;
-            if (bgImg.complete && bgImg.naturalWidth > 0) {
+            if (assetManager.get('background')?.complete) {
                  createBackgroundPatternTile();
                  createActualPattern(); 
             }
             
-            // Resize Game Canvas to full screen
             gameCanvas.width = window.innerWidth;
             gameCanvas.height = window.innerHeight;
             gameCanvasWidth = gameCanvas.width; 
             gameCanvasHeight = gameCanvas.height;
 
-            // Update player's resting Y position to be vertically centered
             player.restingY = gameCanvasHeight / 2 - player.height / 2;
-            if (!player.isJumping || !gameStarted) { // If not jumping or game not started, set to restingY
+            if (!player.isJumping || !gameStarted) {
                  player.y = player.restingY;
             }
+            
+            drawScrollingFullScreenBackground();
+            ctx.clearRect(0, 0, gameCanvasWidth, gameCanvasHeight);
 
+            if (assetsReady) {
+                player.draw();
+                obstacles.forEach(o => o.draw());
+                powerUps.forEach(p => p.draw());
 
-            obstacles.forEach(obs => {
-                if (obs.type === 'asteroid') {
-                    // Center asteroid relative to player's resting Y
-                    obs.y = player.restingY + player.height / 2 - obs.height / 2 + (Math.random() * 20 - 10); // Slight random y variation
-                } else if (obs.type === 'alienShip') {
-                    const alienShipClearance = 10; 
-                    obs.y = player.restingY - alienShipClearance - obs.height; 
-                    if (obs.y < 10) obs.y = 10;
-                }
-            });
-             powerUps.forEach(pUp => { 
-                pUp.y = gameCanvasHeight / 2 - pUp.height / 2 + (Math.random() * 60 - 30);
-                if (pUp.y < 20) pUp.y = 20;
-                if (pUp.y + pUp.height > gameCanvasHeight - 20) pUp.y = gameCanvasHeight - 20 - pUp.height;
-            });
-
-            if (!gameStarted || gameOver) { 
-                drawScrollingFullScreenBackground(); 
-                ctx.clearRect(0,0,gameCanvas.width,gameCanvas.height); 
-                player.draw(); 
-                obstacles.forEach(o=>o.draw()); 
-                powerUps.forEach(p=>p.draw());
-            }
-
-            if (!gameOver) {
-                if(!gameStarted && imagesLoaded === totalImages || gameStarted) {
-                    ctx.font = `16px ${gameFont}`; 
-                    ctx.fillStyle = currentTheme.scoreText; 
-                    ctx.textAlign = 'left';
-                    ctx.fillText(`Score: ${score}`, 10, 25);
-                }
+                ctx.font = `16px ${gameFont}`;
+                ctx.fillStyle = currentTheme.scoreText;
+                ctx.textAlign = 'left';
+                ctx.fillText(`Score: ${score}`, 10, 25);
             }
 
             if (gameOver) { 
                 setGameOver(); 
-            } else if (!gameStarted && imagesLoaded === totalImages) { 
+            } else if (!gameStarted && assetsReady) { 
                 ctx.font = `20px ${gameFont}`; 
                 ctx.textAlign = 'center';
                 const promptText = 'Tap Screen or Press Space/Up to Start!';
                 const textMetrics = ctx.measureText(promptText);
-                const textWidth = textMetrics.width;
-                const textHeight = parseInt(ctx.font, 10) * 1.2;
-
                 ctx.fillStyle = currentTheme.promptBg; 
-                ctx.fillRect(gameCanvas.width / 2 - textWidth / 2 - 10, gameCanvas.height / 2 - textHeight, textWidth + 20, textHeight + 10);
+                ctx.fillRect(gameCanvas.width / 2 - textMetrics.width / 2 - 10, gameCanvas.height / 2 - 20, textMetrics.width + 20, 30);
                 ctx.fillStyle = currentTheme.promptText; 
-                ctx.fillText(promptText, gameCanvas.width / 2, gameCanvas.height / 2 - textHeight / 2 + 5);
-
-            } else if (!gameStarted && imagesLoaded < totalImages) { 
+                ctx.fillText(promptText, gameCanvas.width / 2, gameCanvas.height / 2);
+            } else if (!assetsReady) { 
                  ctx.font = `20px ${gameFont}`; 
                  ctx.textAlign = 'center';
-                 const loadingText = 'Loading Assets...';
-                 const textMetricsLoading = ctx.measureText(loadingText);
-                 const loadingTextWidth = textMetricsLoading.width;
-                 const loadingTextHeight = parseInt(ctx.font, 10) * 1.2;
-
-                 ctx.fillStyle = currentTheme.promptBg; 
-                 ctx.fillRect(gameCanvas.width / 2 - loadingTextWidth / 2 - 10, gameCanvas.height / 2 - loadingTextHeight, loadingTextWidth + 20, loadingTextHeight + 10);
                  ctx.fillStyle = currentTheme.promptText; 
-                 ctx.fillText(loadingText, gameCanvas.width / 2, gameCanvas.height / 2 - loadingTextHeight/2 + 5);
+                 ctx.fillText('Loading Assets...', gameCanvas.width / 2, gameCanvas.height / 2);
             }
-             drawHeaderPalopsee(); 
+            if(assetsReady) drawHeaderPalopsee(); 
         }
         
         window.addEventListener('resize', resizeAndRedrawAll);
@@ -720,29 +681,14 @@
 
             player.width = playerTargetWidth;
             player.height = playerTargetHeight;
-            // Initial player.y and restingY will be set correctly in the first call to resizeAndRedrawAll
 
-            palopseeImg.onload = onImageLoad;
-            palopseeDarkImg.onload = onImageLoad; 
-            asteroidImg.onload = onImageLoad;
-            alienShipImg.onload = onImageLoad; 
-            powerUpImg.onload = onImageLoad; 
-            bgImg.onload = onImageLoad; 
-
-            palopseeImg.onerror = onImageError;
-            palopseeDarkImg.onerror = onImageError; 
-            asteroidImg.onerror = onImageError;
-            alienShipImg.onerror = onImageError;
-            powerUpImg.onerror = onImageError; 
-            bgImg.onerror = onImageError; 
-
-            palopseeImg.src = palopseeImageUrl;
-            palopseeDarkImg.src = palopseeDarkImageUrl; 
-            asteroidImg.src = asteroidImageUrl;
-            alienShipImg.src = alienShipImageUrl;
-            powerUpImg.src = powerUpImageUrl; 
-            bgImg.src = backgroundImageUrl; 
+            assetManager.onAllAssetsLoaded = assetsReadyCallback;
             
+            Object.keys(imageUrls).forEach(name => assetManager.loadAsset(name, imageUrls[name]));
+            Object.keys(gifUrls).forEach(name => assetManager.loadAsset(name, gifUrls[name]));
+
+            // Sets the initial theme based on system preference
+            const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
             applyTheme(darkModeMediaQuery.matches); 
         }
 
