@@ -156,6 +156,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
+        // FIX: Using the correct browser key for Firebase services.
         const firebaseConfig = {
             apiKey: "AIzaSyDKcumpOoSW3T3qdsNJWFFhje_CCOL-U10",
             authDomain: "palopsee-2d584.firebaseapp.com",
@@ -166,6 +167,7 @@
             measurementId: "G-E1F0FXCS56"
         };
         
+        // FIX: Using the separate key for the Gemini API.
         const geminiApiKey = "AIzaSyCmBgtVM3y9bHpf1Q3kGFieNi4wc5H41M8";
 
         const app = initializeApp(firebaseConfig);
@@ -569,7 +571,6 @@
             if (newScore > existingScore) {
                 let name = userDoc.exists() ? userDoc.data().name : null;
                 if (!name) {
-                    // FIX: Use window.prompt to avoid conflict
                     name = window.prompt("New high score! Enter your name for the leaderboard:", "Player");
                     if (!name) name = "Anonymous";
                 }
