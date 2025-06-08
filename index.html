@@ -164,6 +164,14 @@
         // --- Customizable Link URL ---
         let customHeaderLinkUrl = "https://palopsee.univer.se/"; 
         
+        // --- NEW: Game Scaling Constants ---
+        const PLAYER_SCALE_HEIGHT = 44;     // Base height for the player, similar to Chrome Dino
+        const OBSTACLE_SCALE_HEIGHT = 42;   // Base height for obstacles
+        const POWERUP_SCALE_HEIGHT = 28;    // Base height for power-ups
+        const HEADER_ICON_SIZE = 40;        // Explicit size for header icon
+        const BACKGROUND_TILE_WIDTH = 200;
+        const BACKGROUND_TILE_HEIGHT = 150;
+        
         // --- Asset URLs ---
         const imageUrls = {
             palopsee: 'https://palopsee.netlify.app/palopsee.png',
@@ -175,7 +183,7 @@
             asteroid: '/asteroid1.gif'
         };
 
-        // --- Asset Manager (Improved to store dimensions) ---
+        // --- Asset Manager (Stores natural dimensions) ---
         const assetManager = {
             assets: {},
             totalAssets: 0,
@@ -233,27 +241,25 @@
         const gameFont = "'Pixelify Sans', 'Inter', sans-serif"; 
 
         const player = {
-            x: 50, y: 0, width: 50, height: 50, 
+            x: 50, y: 0, width: 0, height: 0, // Dimensions will be set dynamically based on scale
             dy: 0, jumpStrength: 12, gravity: 0.7,   
             isJumping: false, restingY: 0, isInvincible: false, invincibilityFrames: 0, 
             draw() {
                 const palopseeAsset = assetManager.get('palopsee');
                 if (!palopseeAsset || !palopseeAsset.image.complete) return;
 
-                ctx.save(); // Save context state
+                ctx.save();
                 if (isDarkMode) {
-                    // Programmatically create dark mode version with a filter
-                    // This preserves transparency and avoids needing a separate asset.
                     ctx.filter = 'invert(1) hue-rotate(180deg) brightness(1.1) contrast(1.1)';
                 }
                 
                 if (this.isInvincible && this.invincibilityFrames++ % 10 < 5) {
-                    // Flicker effect, do nothing to skip drawing this frame
+                    // Flicker effect
                 } else {
                     ctx.drawImage(palopseeAsset.image, this.x, this.y, this.width, this.height);
                 }
                 
-                ctx.restore(); // Restore context state
+                ctx.restore();
             },
             jump() {
                 if (!this.isJumping && !gameOver && gameStarted) { 
@@ -278,6 +284,22 @@
         let obstacles = [];
         let powerUps = []; 
 
+        /**
+         * Calculates scaled dimensions for an asset while maintaining aspect ratio.
+         * @param {string} assetName - The name of the asset in the assetManager.
+         * @param {number} baseHeight - The target height to scale to.
+         * @returns {{width: number, height: number}} - The new scaled dimensions.
+         */
+        function getScaledDimensions(assetName, baseHeight) {
+            const assetInfo = assetManager.get(assetName);
+            if (!assetInfo || !assetInfo.height) { // Check height to avoid division by zero
+                return { width: baseHeight, height: baseHeight }; // Return a default square if asset fails
+            }
+            const aspectRatio = assetInfo.width / assetInfo.height;
+            const scaledWidth = baseHeight * aspectRatio;
+            return { width: scaledWidth, height: baseHeight };
+        }
+
         function createObstacle() {
             const isAsteroid = Math.random() < 0.6;
             const assetName = isAsteroid ? 'asteroid' : 'alienShip';
@@ -285,20 +307,21 @@
             
             if (!assetInfo || assetInfo.width === 0) return; // Don't create if asset not loaded
 
+            const scaledDims = getScaledDimensions(assetName, OBSTACLE_SCALE_HEIGHT);
             const verticalCenter = gameCanvasHeight / 2;
             let yPos;
 
             if (isAsteroid) {
-                yPos = verticalCenter - assetInfo.height / 2 + (Math.random() * player.height - player.height / 2);
+                yPos = verticalCenter - scaledDims.height / 2 + (Math.random() * player.height - player.height / 2);
             } else { 
                 const alienShipClearance = 10;
-                yPos = player.restingY - alienShipClearance - assetInfo.height;
+                yPos = player.restingY - alienShipClearance - scaledDims.height;
                 if (yPos < 10) yPos = 10;
             }
 
             obstacles.push({ 
                 x: gameCanvasWidth, y: yPos, 
-                width: assetInfo.width, height: assetInfo.height, 
+                width: scaledDims.width, height: scaledDims.height, 
                 image: assetInfo.image, 
                 draw() { 
                     if (this.image && this.image.complete) {
@@ -313,12 +336,13 @@
             const assetInfo = assetManager.get('powerUp');
             if (!assetInfo || assetInfo.width === 0) return;
 
+            const scaledDims = getScaledDimensions('powerUp', POWERUP_SCALE_HEIGHT);
             const verticalCenter = gameCanvasHeight / 2;
-            const yPos = verticalCenter - assetInfo.height / 2 + (Math.random() * (player.height * 2) - player.height);
+            const yPos = verticalCenter - scaledDims.height / 2 + (Math.random() * (player.height * 2) - player.height);
             
             const newPowerUp = {
                 x: gameCanvasWidth, y: yPos,
-                width: assetInfo.width, height: assetInfo.height,
+                width: scaledDims.width, height: scaledDims.height,
                 image: assetInfo.image,
                 draw() { 
                      if (this.image && this.image.complete) {
@@ -393,8 +417,8 @@
             const bgInfo = assetManager.get('background');
             if (bgInfo && bgInfo.image.complete) {
                 bgPatternCanvas = document.createElement("canvas");
-                bgPatternCanvas.width = bgInfo.width > 0 ? bgInfo.width : 200;
-                bgPatternCanvas.height = bgInfo.height > 0 ? bgInfo.height : 150;
+                bgPatternCanvas.width = BACKGROUND_TILE_WIDTH;
+                bgPatternCanvas.height = BACKGROUND_TILE_HEIGHT;
                 const patternCtx = bgPatternCanvas.getContext("2d");
                 patternCtx.drawImage(bgInfo.image, 0, 0, bgPatternCanvas.width, bgPatternCanvas.height);
                 createActualPattern();
@@ -435,21 +459,19 @@
         function drawHeaderPalopsee() {
             if (!headerPalopseeCtx) return;
             const palopseeAsset = assetManager.get('palopsee');
-            const headerSize = 40; // Hardcoded size for header
-            headerPalopseeCanvas.width = headerSize;
-            headerPalopseeCanvas.height = headerSize;
-            headerPalopseeCtx.clearRect(0, 0, headerSize, headerSize);
+            headerPalopseeCanvas.width = HEADER_ICON_SIZE;
+            headerPalopseeCanvas.height = HEADER_ICON_SIZE;
+            headerPalopseeCtx.clearRect(0, 0, HEADER_ICON_SIZE, HEADER_ICON_SIZE);
 
             if (palopseeAsset && palopseeAsset.image.complete) {
                 headerPalopseeCtx.save();
                 if (isDarkMode) {
                      headerPalopseeCtx.filter = 'invert(1) hue-rotate(180deg) brightness(1.1) contrast(1.1)';
                 }
-                headerPalopseeCtx.drawImage(palopseeAsset.image, 0, 0, headerSize, headerSize);
+                headerPalopseeCtx.drawImage(palopseeAsset.image, 0, 0, HEADER_ICON_SIZE, HEADER_ICON_SIZE);
                 headerPalopseeCtx.restore();
             }
         }
-
 
         function setGameOver() {
             gameOver = true;
@@ -499,8 +521,6 @@
         function gameLoop() {
             if (gameOver) return;
 
-            // The main loop, responsible for all drawing.
-            // It will pick up theme changes automatically because it reads `isDarkMode`.
             backgroundOffsetX -= gameSpeed;
             drawScrollingFullScreenBackground(); 
 
@@ -528,18 +548,15 @@
 
         function assetsReadyCallback() {
             assetsReady = true;
-            // Set initial player dimensions from loaded asset
-            const palopseeAsset = assetManager.get('palopsee');
-            if(palopseeAsset) {
-                player.width = palopseeAsset.width;
-                player.height = palopseeAsset.height;
-            }
+
+            const scaledPlayerDims = getScaledDimensions('palopsee', PLAYER_SCALE_HEIGHT);
+            player.width = scaledPlayerDims.width;
+            player.height = scaledPlayerDims.height;
             
             createBackgroundPatternTile();
             drawHeaderPalopsee();
-            resizeAndRedrawAll(); // Perform initial draw
+            resizeAndRedrawAll(); 
             
-            // Start the game loop paused, just for drawing
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             gameLoop();
             
@@ -551,7 +568,7 @@
             if (!audioInitialized) initializeAudio();
             if (gameOver) { resetGame(); return; }
             if (!gameStarted && assetsReady) {
-                gameStarted = true; // This will un-pause the game logic inside gameLoop
+                gameStarted = true;
                 score = 0;
                 gameSpeed = 5;
                 player.jump();
@@ -571,9 +588,7 @@
             isDarkMode = isDark; 
             currentTheme = isDarkMode ? themes.dark : themes.light; 
             bodyElement.className = isDarkMode ? 'dark-theme' : 'light-theme'; 
-            // FIX: No direct drawing calls. The game loop will handle redraws.
-            // This ensures the loop is never interrupted and state changes are reflected smoothly.
-            drawHeaderPalopsee(); // Header is outside main canvas, so it needs a manual redraw.
+            drawHeaderPalopsee();
         }
 
         themeToggle.addEventListener('click', () => applyTheme(!isDarkMode));
@@ -594,7 +609,6 @@
             createBackgroundPatternTile();
             drawHeaderPalopsee();
 
-            // Draw prompt text if game hasn't started
             if (!gameStarted && assetsReady) { 
                 ctx.font = `20px ${gameFont}`; 
                 ctx.textAlign = 'center';
