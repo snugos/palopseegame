@@ -90,15 +90,25 @@
         }
         #leaderboardList li {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            align-items: flex-start;
             padding: 8px 12px;
             border-bottom: 1px solid #DDDDDD;
+            text-align: left;
         }
-        #leaderboardList li:nth-child(odd) {
-            background-color: #f0f0f0;
+        #leaderboardList li .score-line {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
         }
         #leaderboardList .player-name {
             font-weight: 600;
+        }
+        #leaderboardList .banter {
+            font-style: italic;
+            font-size: 12px;
+            color: #555;
+            margin-top: 4px;
         }
          #closeLeaderboard {
             margin-top: 16px;
@@ -146,8 +156,9 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
+        // FIX: Using the browser key provided by the user.
         const firebaseConfig = {
-            apiKey: "AIzaSyCmBgtVM3y9bHpf1Q3kGFieNi4wc5H41M8", // Using the key you provided
+            apiKey: "AIzaSyDKcumpOoSW3T3qdsNJWFFhje_CCOL-U10",
             authDomain: "palopsee-2d584.firebaseapp.com",
             projectId: "palopsee-2d584",
             storageBucket: "palopsee-2d584.appspot.com",
@@ -260,6 +271,9 @@
         let gameSpeed = 5, gameSpeedIncreaseFactor = 0.002;
         let gameOver = false, gameStarted = false, assetsReady = false;
         let animationFrameId, gameCanvasWidth, gameCanvasHeight; 
+
+        let geminiGameOverMessage = '';
+        let isGeneratingMessage = false;
 
         const cheatCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
         let userInputSequence = [];
@@ -490,6 +504,38 @@
             }
         }
 
+        async function generateGeminiText(prompt) {
+            const apiKey = firebaseConfig.apiKey;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }]
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error("Gemini API Error:", response.status, errorBody);
+                    return "My circuits are a little fried right now.";
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                }
+                return "Couldn't think of anything clever.";
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                return "My circuits are buzzing...";
+            }
+        }
+
+
         async function setGameOver() {
             if (gameOver) return;
             gameOver = true;
@@ -503,6 +549,14 @@
                 await submitScore(score);
             }
             playGameOverSound(); 
+
+            isGeneratingMessage = true;
+            geminiGameOverMessage = 'Thinking of a witty remark...';
+            const prompt = `Generate a short, witty, encouraging, or funny message for a player who just got a score of ${score} in a space-themed endless runner game. The character's name is Palopsee. Be slightly sarcastic. Keep it under 20 words.`;
+            generateGeminiText(prompt).then(text => {
+                geminiGameOverMessage = text.replace(/"/g, '');
+                isGeneratingMessage = false;
+            });
         }
 
         async function submitScore(newScore) {
@@ -519,11 +573,14 @@
                     if (!name) name = "Anonymous";
                 }
                 
-                // Removed the Gemini API call for banter
+                const prompt = `Generate a short, space-themed, boastful quote for a player named "${name}" who just set a high score of ${newScore}. The quote should be in the first person. Maximum 15 words.`;
+                const banter = await generateGeminiText(prompt);
+
                 await setDoc(userDocRef, {
                     name: name,
                     score: newScore,
-                    userId: currentUser.uid
+                    userId: currentUser.uid,
+                    banter: banter.replace(/"/g, '')
                 }, { merge: true });
                 showMessage("High score saved to leaderboard!");
             }
@@ -539,6 +596,7 @@
             player.isInvincible = false;
             player.y = player.restingY;
             messageBox.style.display = 'none';
+            geminiGameOverMessage = '';
         }
 
         function gameLoop() {
@@ -576,6 +634,9 @@
                 ctx.font = `20px ${gameFont}`; 
                 ctx.fillText(`Score: ${score}`, gameCanvasWidth / 2, gameCanvasHeight / 2 - 20);
                 ctx.fillText(`High Score: ${highScore}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 10);
+                
+                ctx.font = `italic 16px ${gameFont}`;
+                ctx.fillText(geminiGameOverMessage, gameCanvasWidth / 2, gameCanvasHeight / 2 + 50);
                 
                 ctx.font = `16px ${gameFont}`; 
                 ctx.fillText('Tap or Press Space/Up to Restart', gameCanvasWidth / 2, gameCanvasHeight / 2 + 90);
@@ -625,7 +686,8 @@
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     const li = document.createElement('li');
-                    li.innerHTML = `<div class="score-line"><span class="player-name">${data.name}</span><span>${data.score}</span></div>`;
+                    li.innerHTML = `<div class="score-line"><span class="player-name">${data.name}</span><span>${data.score}</span></div>
+                                    ${data.banter ? `<div class="banter">"${data.banter}"</div>` : ''}`;
                     leaderboardList.appendChild(li);
                 });
             }, (error) => {
