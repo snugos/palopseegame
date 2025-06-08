@@ -71,12 +71,11 @@
             color: #DDDDDD;
         }
 
-        /* --- Theme Toggle Button Styles --- */
         #theme-toggle {
             position: fixed;
             bottom: 20px;
             left: 20px;
-            z-index: 1001; /* Ensure it's above other elements */
+            z-index: 1001;
             cursor: pointer;
             background-color: rgba(128, 128, 128, 0.2);
             border-radius: 50%;
@@ -116,9 +115,7 @@
 
     <div id="theme-toggle" title="Toggle Theme">
         <svg viewBox="0 0 24 24">
-            <!-- Moon Icon -->
             <path id="moon-icon" d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
-            <!-- Sun Icon -->
             <path id="sun-icon" d="M12 3a1 1 0 011 1v2a1 1 0 11-2 0V4a1 1 0 011-1zM4.929 4.929a1 1 0 011.414 0l1.414 1.414a1 1 0 01-1.414 1.414L4.929 6.343a1 1 0 010-1.414zM21 12a1 1 0 01-1 1h-2a1 1 0 110-2h2a1 1 0 011 1zM16.243 16.243a1 1 0 011.414 0l1.414 1.414a1 1 0 01-1.414 1.414l-1.414-1.414a1 1 0 010-1.414zM12 19a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM7.757 16.243a1 1 0 010 1.414l-1.414 1.414a1 1 0 01-1.414-1.414l1.414-1.414a1 1 0 011.414 0zM4 12a1 1 0 01-1 1H1a1 1 0 110-2h2a1 1 0 011 1zM7.757 7.757a1 1 0 010-1.414L6.343 4.929a1 1 0 111.414-1.414l1.414 1.414a1 1 0 01-1.414 1.414zM12 7a5 5 0 100 10 5 5 0 000-10z"></path>
         </svg>
     </div>
@@ -133,21 +130,17 @@
         const headerPalopseeCanvas = document.getElementById('headerPalopseeCanvas');
         const headerPalopseeCtx = headerPalopseeCanvas.getContext('2d');
         const headerLink = document.getElementById('headerLink');
-        const headerLinkContainer = document.getElementById('headerLinkContainer');
-
 
         const messageBox = document.getElementById('messageBox');
         const bodyElement = document.body;
         const themeToggle = document.getElementById('theme-toggle');
 
-        // --- Sound Effects Setup (Tone.js) ---
+        // --- Sound Effects Setup ---
         let audioInitialized = false;
         let jumpSynth, scoreSynth, gameOverSynth, powerUpSynth;
 
         function initializeAudio() {
-            if (Tone.context.state !== 'running') {
-                Tone.start(); 
-            }
+            if (Tone.context.state !== 'running') Tone.start();
             jumpSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.01, release: 0.1 } }).toDestination();
             scoreSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.05, sustain: 0, release: 0.1 } }).toDestination();
             gameOverSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.1 } }).toDestination();
@@ -159,8 +152,6 @@
         function playScoreSound() { if (audioInitialized) {scoreSynth.volume.value = -18; scoreSynth.triggerAttackRelease('A5', '16n', Tone.now());} }
         function playGameOverSound() { if (audioInitialized) {gameOverSynth.volume.value = -8; gameOverSynth.triggerAttackRelease('16n', Tone.now());} }
         function playPowerUpSound() { if (audioInitialized) {powerUpSynth.volume.value = -10; powerUpSynth.triggerAttackRelease('G5', '8n', Tone.now());} }
-        // --- End Sound Effects Setup ---
-
 
         // --- Theme Colors ---
         const themes = {
@@ -172,37 +163,19 @@
 
         // --- Customizable Link URL ---
         let customHeaderLinkUrl = "https://palopsee.univer.se/"; 
-        // --- End Customizable Link URL ---
         
         // --- Asset URLs ---
-        // UPDATED: Swapped which asset is the GIF
         const imageUrls = {
             palopsee: 'https://palopsee.netlify.app/palopsee.png',
-            palopseeDark: 'https://palopsee.netlify.app/palopsee-modified.png',
             background: 'https://palopsee.netlify.app/background.png',
             alienShip: '/alien1.png',
             powerUp: '/star1.png'
         };
-
         const gifUrls = {
             asteroid: '/asteroid1.gif'
         };
 
-        // --- Define Target Sizes for Game Elements ---
-        const playerTargetWidth = 50; 
-        const playerTargetHeight = 50;
-        const asteroidTargetWidth = 32; 
-        const asteroidTargetHeight = 32;
-        const alienShipTargetWidth = 48; 
-        const alienShipTargetHeight = 24;
-        const powerUpTargetWidth = 24;   
-        const powerUpTargetHeight = 24;
-        const headerPalopseeTargetWidth = 40; 
-        const headerPalopseeTargetHeight = 40;
-        const backgroundTileWidth = 200; 
-        const backgroundTileHeight = 150; 
-
-        // --- Asset Manager for Loading Images and GIFs ---
+        // --- Asset Manager (Improved to store dimensions) ---
         const assetManager = {
             assets: {},
             totalAssets: 0,
@@ -212,28 +185,29 @@
             loadAsset(name, src) {
                 this.totalAssets++;
                 const asset = new Image();
-                asset.src = src;
-                asset.onload = () => this.assetLoaded(name, src);
+                this.assets[name] = { image: asset, width: 0, height: 0 };
+                asset.onload = () => {
+                    console.log(`Loaded ${name} (${asset.naturalWidth}x${asset.naturalHeight})`);
+                    this.assets[name].width = asset.naturalWidth;
+                    this.assets[name].height = asset.naturalHeight;
+                    this.assetLoaded();
+                };
                 asset.onerror = () => {
                     console.error(`Failed to load asset: ${name} at ${src}`);
-                    this.assetLoaded(name, src);
+                    this.assetLoaded();
                 };
-                this.assets[name] = asset;
+                asset.src = src;
             },
-
-            assetLoaded(name, src) {
+            assetLoaded() {
                 this.loadedAssets++;
-                console.log(`Loaded ${name} from ${src}`);
                 if (this.loadedAssets === this.totalAssets && typeof this.onAllAssetsLoaded === 'function') {
                     this.onAllAssetsLoaded();
                 }
             },
-
             get(name) {
                 return this.assets[name];
             }
         };
-
 
         let bgPatternCanvas = null; 
         let backgroundPattern = null; 
@@ -258,35 +232,30 @@
 
         const gameFont = "'Pixelify Sans', 'Inter', sans-serif"; 
 
-        // Player (Palopsee) properties
         const player = {
-            x: 50,
-            y: 0, 
-            width: playerTargetWidth,  
-            height: playerTargetHeight, 
-            dy: 0, 
-            jumpStrength: 12, 
-            gravity: 0.7,   
-            isJumping: false,
-            restingY: 0,
-            isInvincible: false, 
-            invincibilityFrames: 0, 
+            x: 50, y: 0, width: 50, height: 50, 
+            dy: 0, jumpStrength: 12, gravity: 0.7,   
+            isJumping: false, restingY: 0, isInvincible: false, invincibilityFrames: 0, 
             draw() {
-                const palopseeAsset = isDarkMode ? assetManager.get('palopseeDark') : assetManager.get('palopsee');
+                const palopseeAsset = assetManager.get('palopsee');
+                if (!palopseeAsset || !palopseeAsset.image.complete) return;
 
-                if (palopseeAsset && palopseeAsset.complete && palopseeAsset.naturalWidth > 0) {
-                    if (this.isInvincible) {
-                        this.invincibilityFrames++;
-                        if (this.invincibilityFrames % 10 < 5) return; 
-                    }
-                    ctx.drawImage(palopseeAsset, this.x, this.y, this.width, this.height);
-                } else {
-                    ctx.fillStyle = currentTheme.scoreText; 
-                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.save(); // Save context state
+                if (isDarkMode) {
+                    // Programmatically create dark mode version with a filter
+                    // This preserves transparency and avoids needing a separate asset.
+                    ctx.filter = 'invert(1) hue-rotate(180deg) brightness(1.1) contrast(1.1)';
                 }
+                
+                if (this.isInvincible && this.invincibilityFrames++ % 10 < 5) {
+                    // Flicker effect, do nothing to skip drawing this frame
+                } else {
+                    ctx.drawImage(palopseeAsset.image, this.x, this.y, this.width, this.height);
+                }
+                
+                ctx.restore(); // Restore context state
             },
             jump() {
-                if (event && event.target === themeToggle) return;
                 if (!this.isJumping && !gameOver && gameStarted) { 
                     this.isJumping = true;
                     this.dy = -this.jumpStrength;
@@ -310,32 +279,30 @@
         let powerUps = []; 
 
         function createObstacle() {
-            const obstacleType = Math.random() < 0.6 ? 'asteroid' : 'alienShip'; 
-            let img, width, height, yPos;
-            const verticalCenter = gameCanvasHeight / 2;
+            const isAsteroid = Math.random() < 0.6;
+            const assetName = isAsteroid ? 'asteroid' : 'alienShip';
+            const assetInfo = assetManager.get(assetName);
+            
+            if (!assetInfo || assetInfo.width === 0) return; // Don't create if asset not loaded
 
-            if (obstacleType === 'asteroid') {
-                img = assetManager.get('asteroid');
-                width = asteroidTargetWidth; 
-                height = asteroidTargetHeight; 
-                yPos = verticalCenter - height / 2 + (Math.random() * player.height - player.height / 2);
+            const verticalCenter = gameCanvasHeight / 2;
+            let yPos;
+
+            if (isAsteroid) {
+                yPos = verticalCenter - assetInfo.height / 2 + (Math.random() * player.height - player.height / 2);
             } else { 
-                img = assetManager.get('alienShip');
-                width = alienShipTargetWidth; 
-                height = alienShipTargetHeight; 
                 const alienShipClearance = 10;
-                yPos = player.restingY - alienShipClearance - height;
+                yPos = player.restingY - alienShipClearance - assetInfo.height;
                 if (yPos < 10) yPos = 10;
             }
 
             obstacles.push({ 
-                x: gameCanvasWidth, y: yPos, width, height, type: obstacleType, image: img, 
+                x: gameCanvasWidth, y: yPos, 
+                width: assetInfo.width, height: assetInfo.height, 
+                image: assetInfo.image, 
                 draw() { 
-                    if (this.image && this.image.complete && this.image.naturalWidth > 0) {
+                    if (this.image && this.image.complete) {
                         ctx.drawImage(this.image, this.x, this.y, this.width, this.height); 
-                    } else {
-                        ctx.fillStyle = (this.type === 'asteroid') ? '#A9A9A9' : '#90EE90'; 
-                        ctx.fillRect(this.x, this.y, this.width, this.height);
                     }
                 }, 
                 update() { this.x -= gameSpeed; } 
@@ -343,19 +310,19 @@
         }
 
         function createPowerUp() {
+            const assetInfo = assetManager.get('powerUp');
+            if (!assetInfo || assetInfo.width === 0) return;
+
             const verticalCenter = gameCanvasHeight / 2;
+            const yPos = verticalCenter - assetInfo.height / 2 + (Math.random() * (player.height * 2) - player.height);
+            
             const newPowerUp = {
-                x: gameCanvasWidth,
-                y: verticalCenter - powerUpTargetHeight / 2 + (Math.random() * (player.height * 2) - player.height), 
-                width: powerUpTargetWidth,
-                height: powerUpTargetHeight,
-                image: assetManager.get('powerUp'),
+                x: gameCanvasWidth, y: yPos,
+                width: assetInfo.width, height: assetInfo.height,
+                image: assetInfo.image,
                 draw() { 
-                     if (this.image && this.image.complete && this.image.naturalWidth > 0) {
+                     if (this.image && this.image.complete) {
                         ctx.drawImage(this.image, this.x, this.y, this.width, this.height); 
-                     } else {
-                        ctx.fillStyle = '#FFD700'; 
-                        ctx.fillRect(this.x, this.y, this.width, this.height);
                      }
                 },
                 update() { this.x -= gameSpeed; }
@@ -380,10 +347,7 @@
                 obs.update();
                 obs.draw();
 
-                if ( !player.isInvincible &&
-                    player.x < obs.x + obs.width && player.x + player.width > obs.x &&
-                    player.y < obs.y + obs.height && player.y + player.height > obs.y
-                ) {
+                if ( !player.isInvincible && player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
                     setGameOver();
                     return; 
                 }
@@ -396,18 +360,14 @@
                             playScoreSound();
                             previousScoreForSound = score; 
                         }
-                        if (score % scoreMilestoneInterval !== 0) {
-                            powerUpSpawnedForCurrentMilestone = false;
-                        }
+                        if (score % scoreMilestoneInterval !== 0) powerUpSpawnedForCurrentMilestone = false;
                     }
                 }
             }
         }
 
         function handlePowerUps() {
-            if (gameStarted && powerUps.length === 0 && 
-                score > 0 && score % scoreMilestoneInterval === 0 && 
-                !powerUpSpawnedForCurrentMilestone) {
+            if (gameStarted && powerUps.length === 0 && score > 0 && score % scoreMilestoneInterval === 0 && !powerUpSpawnedForCurrentMilestone) {
                 createPowerUp();
                 powerUpSpawnedForCurrentMilestone = true; 
             }
@@ -417,10 +377,7 @@
                 pUp.update();
                 pUp.draw();
 
-                if (
-                    player.x < pUp.x + pUp.width && player.x + player.width > pUp.x &&
-                    player.y < pUp.y + pUp.height && player.y + player.height > pUp.y
-                ) {
+                if (player.x < pUp.x + pUp.width && player.x + player.width > pUp.x && player.y < pUp.y + pUp.height && player.y + player.height > pUp.y) {
                     player.isInvincible = true;
                     player.invincibilityFrames = 0; 
                     playPowerUpSound();
@@ -428,45 +385,40 @@
                     setTimeout(() => { player.isInvincible = false; }, 5000); 
                 }
 
-                if (pUp.x + pUp.width < 0) {
-                    powerUps.splice(i, 1); 
-                }
+                if (pUp.x + pUp.width < 0) powerUps.splice(i, 1);
             }
         }
         
         function createBackgroundPatternTile() {
-            const bgImg = assetManager.get('background');
-            if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+            const bgInfo = assetManager.get('background');
+            if (bgInfo && bgInfo.image.complete) {
                 bgPatternCanvas = document.createElement("canvas");
-                bgPatternCanvas.width = backgroundTileWidth;
-                bgPatternCanvas.height = backgroundTileHeight;
+                bgPatternCanvas.width = bgInfo.width > 0 ? bgInfo.width : 200;
+                bgPatternCanvas.height = bgInfo.height > 0 ? bgInfo.height : 150;
                 const patternCtx = bgPatternCanvas.getContext("2d");
-                patternCtx.drawImage(bgImg, 0, 0, backgroundTileWidth, backgroundTileHeight);
+                patternCtx.drawImage(bgInfo.image, 0, 0, bgPatternCanvas.width, bgPatternCanvas.height);
+                createActualPattern();
             } else {
                 bgPatternCanvas = null;
             }
         }
         
         function createActualPattern(){ 
-            if (bgPatternCanvas && bgCtx) {
-                backgroundPattern = bgCtx.createPattern(bgPatternCanvas, "repeat");
-            } else {
-                backgroundPattern = null;
-            }
+            if (bgPatternCanvas && bgCtx) backgroundPattern = bgCtx.createPattern(bgPatternCanvas, "repeat");
+            else backgroundPattern = null;
         }
 
         function drawScrollingFullScreenBackground(){ 
             if (!bgCtx) return;
             bgCtx.clearRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
             
-            if (backgroundPattern) {
+            if (backgroundPattern && bgPatternCanvas) {
                 bgCtx.save();
                 bgCtx.globalAlpha = 0.1;
                 let patternOffsetX = backgroundOffsetX % bgPatternCanvas.width;
-                if (patternOffsetX > 0) patternOffsetX -= bgPatternCanvas.width;
                 bgCtx.translate(patternOffsetX, 0);
                 bgCtx.fillStyle = backgroundPattern;
-                bgCtx.fillRect(0, 0, backgroundCanvas.width + bgPatternCanvas.width, backgroundCanvas.height); 
+                bgCtx.fillRect(-patternOffsetX, 0, backgroundCanvas.width + bgPatternCanvas.width, backgroundCanvas.height); 
                 bgCtx.restore();
             } else {
                 bgCtx.fillStyle = currentTheme.canvasFallbackBg;
@@ -482,15 +434,19 @@
         
         function drawHeaderPalopsee() {
             if (!headerPalopseeCtx) return;
-            
-            const headerImg = isDarkMode ? assetManager.get('palopseeDark') : assetManager.get('palopsee');
-            headerPalopseeCtx.clearRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
+            const palopseeAsset = assetManager.get('palopsee');
+            const headerSize = 40; // Hardcoded size for header
+            headerPalopseeCanvas.width = headerSize;
+            headerPalopseeCanvas.height = headerSize;
+            headerPalopseeCtx.clearRect(0, 0, headerSize, headerSize);
 
-            if (headerImg && headerImg.complete && headerImg.naturalWidth > 0) {
-                 headerPalopseeCtx.drawImage(headerImg, 0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
-            } else {
-                 headerPalopseeCtx.fillStyle = currentTheme.canvasFallbackBg;
-                 headerPalopseeCtx.fillRect(0, 0, headerPalopseeTargetWidth, headerPalopseeTargetHeight);
+            if (palopseeAsset && palopseeAsset.image.complete) {
+                headerPalopseeCtx.save();
+                if (isDarkMode) {
+                     headerPalopseeCtx.filter = 'invert(1) hue-rotate(180deg) brightness(1.1) contrast(1.1)';
+                }
+                headerPalopseeCtx.drawImage(palopseeAsset.image, 0, 0, headerSize, headerSize);
+                headerPalopseeCtx.restore();
             }
         }
 
@@ -519,7 +475,6 @@
             } else {
                 ctx.fillText(`High Score: ${highScore}`, gameCanvasWidth / 2, gameCanvasHeight / 2 + 40);
             }
-
             ctx.font = `16px ${gameFont}`; 
             ctx.fillText('Tap or Press Space/Up to Restart', gameCanvasWidth / 2, gameCanvasHeight / 2 + 70);
         }
@@ -544,51 +499,68 @@
         function gameLoop() {
             if (gameOver) return;
 
+            // The main loop, responsible for all drawing.
+            // It will pick up theme changes automatically because it reads `isDarkMode`.
             backgroundOffsetX -= gameSpeed;
             drawScrollingFullScreenBackground(); 
 
             ctx.clearRect(0, 0, gameCanvasWidth, gameCanvasHeight); 
-            player.update();
-            player.draw(); 
-            handleObstacles(); 
-            handlePowerUps();  
             
+            if (gameStarted) {
+                player.update();
+                handleObstacles(); 
+                handlePowerUps();
+                gameSpeed += gameSpeedIncreaseFactor;
+            }
+            
+            player.draw();
+            obstacles.forEach(obs => obs.draw());
+            powerUps.forEach(pUp => pUp.draw());
+
             ctx.font = `16px ${gameFont}`; 
             ctx.fillStyle = currentTheme.scoreText; 
             ctx.textAlign = 'left';
-            ctx.fillText(`Score: ${score}`, 10, 25); 
+            ctx.fillText(`Score: ${score}`, 10, 25);
+            ctx.fillText(`High Score: ${highScore}`, 10, 50);
 
-            gameSpeed += gameSpeedIncreaseFactor; 
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
         function assetsReadyCallback() {
             assetsReady = true;
-            createBackgroundPatternTile();
-            createActualPattern();
-            drawHeaderPalopsee();
-            resizeAndRedrawAll();
-            if (!gameStarted && !gameOver) {
-                showMessage('Ready to Fly!', 2000);
+            // Set initial player dimensions from loaded asset
+            const palopseeAsset = assetManager.get('palopsee');
+            if(palopseeAsset) {
+                player.width = palopseeAsset.width;
+                player.height = palopseeAsset.height;
             }
+            
+            createBackgroundPatternTile();
+            drawHeaderPalopsee();
+            resizeAndRedrawAll(); // Perform initial draw
+            
+            // Start the game loop paused, just for drawing
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameLoop();
+            
+            if (!gameStarted && !gameOver) showMessage('Ready to Fly!', 2000);
         }
 
         function startGameActions(event) {
-            if (event && event.target.closest('#theme-toggle')) {
-                return;
-            }
+            if (event && event.target.closest('#theme-toggle')) return;
             if (!audioInitialized) initializeAudio();
             if (gameOver) { resetGame(); return; }
             if (!gameStarted && assetsReady) {
-                gameStarted = true;
-                if (animationFrameId) cancelAnimationFrame(animationFrameId); 
-                gameLoop();
+                gameStarted = true; // This will un-pause the game logic inside gameLoop
+                score = 0;
+                gameSpeed = 5;
+                player.jump();
+            } else if (gameStarted) {
+                 player.jump();
             }
-            player.jump();
         }
 
         window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'ArrowUp')) { e.preventDefault(); startGameActions(e); } });
-        
         document.body.addEventListener('touchstart', (e) => {
             if (e.target.closest('#headerLinkContainer')) return; 
             e.preventDefault(); 
@@ -599,26 +571,16 @@
             isDarkMode = isDark; 
             currentTheme = isDarkMode ? themes.dark : themes.light; 
             bodyElement.className = isDarkMode ? 'dark-theme' : 'light-theme'; 
-            if(assetsReady) {
-                drawHeaderPalopsee(); 
-                resizeAndRedrawAll(); 
-            }
+            // FIX: No direct drawing calls. The game loop will handle redraws.
+            // This ensures the loop is never interrupted and state changes are reflected smoothly.
+            drawHeaderPalopsee(); // Header is outside main canvas, so it needs a manual redraw.
         }
 
-        function toggleTheme() {
-            applyTheme(!isDarkMode);
-        }
-
-        themeToggle.addEventListener('click', toggleTheme);
+        themeToggle.addEventListener('click', () => applyTheme(!isDarkMode));
 
         function resizeAndRedrawAll() { 
             backgroundCanvas.width = window.innerWidth;
             backgroundCanvas.height = window.innerHeight;
-            if (assetManager.get('background')?.complete) {
-                 createBackgroundPatternTile();
-                 createActualPattern(); 
-            }
-            
             gameCanvas.width = window.innerWidth;
             gameCanvas.height = window.innerHeight;
             gameCanvasWidth = gameCanvas.width; 
@@ -629,52 +591,28 @@
                  player.y = player.restingY;
             }
             
-            drawScrollingFullScreenBackground();
-            ctx.clearRect(0, 0, gameCanvasWidth, gameCanvasHeight);
+            createBackgroundPatternTile();
+            drawHeaderPalopsee();
 
-            if (assetsReady) {
-                player.draw();
-                obstacles.forEach(o => o.draw());
-                powerUps.forEach(p => p.draw());
-
-                ctx.font = `16px ${gameFont}`;
-                ctx.fillStyle = currentTheme.scoreText;
-                ctx.textAlign = 'left';
-                ctx.fillText(`Score: ${score}`, 10, 25);
-            }
-
-            if (gameOver) { 
-                setGameOver(); 
-            } else if (!gameStarted && assetsReady) { 
+            // Draw prompt text if game hasn't started
+            if (!gameStarted && assetsReady) { 
                 ctx.font = `20px ${gameFont}`; 
                 ctx.textAlign = 'center';
                 const promptText = 'Tap Screen or Press Space/Up to Start!';
                 const textMetrics = ctx.measureText(promptText);
                 ctx.fillStyle = currentTheme.promptBg; 
-                ctx.fillRect(gameCanvas.width / 2 - textMetrics.width / 2 - 10, gameCanvas.height / 2 - 20, textMetrics.width + 20, 30);
+                ctx.fillRect(gameCanvas.width / 2 - textMetrics.width / 2 - 10, gameCanvas.height - 80, textMetrics.width + 20, 30);
                 ctx.fillStyle = currentTheme.promptText; 
-                ctx.fillText(promptText, gameCanvas.width / 2, gameCanvas.height / 2);
-            } else if (!assetsReady) { 
-                 ctx.font = `20px ${gameFont}`; 
-                 ctx.textAlign = 'center';
-                 ctx.fillStyle = currentTheme.promptText; 
-                 ctx.fillText('Loading Assets...', gameCanvas.width / 2, gameCanvas.height / 2);
+                ctx.fillText(promptText, gameCanvas.width / 2, gameCanvas.height - 60);
             }
-            if(assetsReady) drawHeaderPalopsee(); 
         }
         
         window.addEventListener('resize', resizeAndRedrawAll);
 
         function initGame() {
             headerLink.href = customHeaderLinkUrl; 
-            headerPalopseeCanvas.width = headerPalopseeTargetWidth;
-            headerPalopseeCanvas.height = headerPalopseeTargetHeight;
-
             const savedHighScore = localStorage.getItem(highScoreKey);
-            if (savedHighScore) { highScore = parseInt(savedHighScore, 10); }
-
-            player.width = playerTargetWidth;
-            player.height = playerTargetHeight;
+            if (savedHighScore) highScore = parseInt(savedHighScore, 10);
 
             assetManager.onAllAssetsLoaded = assetsReadyCallback;
             
