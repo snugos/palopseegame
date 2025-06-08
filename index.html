@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Palopsee's Space Run</title>
-    <!-- FIX: Added a default favicon to prevent 404 errors in the console -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
+    <!-- FIX: Updated the favicon to use the Palopsee character image -->
+    <link rel="icon" href="https://palopsee.netlify.app/palopsee.png">
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         /* All CSS remains the same, but placing it in the head ensures styles are applied before content renders */
@@ -69,12 +69,11 @@
 
     <div id="messageBox"></div>
 
-    <!-- FIX: All scripts moved to the end of the body to ensure correct loading order -->
+    <!-- All scripts moved to the end of the body to ensure correct loading order -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://unpkg.com/gifuct-js/dist/gifuct-js.js"></script>
     <script>
-        // No longer need DOMContentLoaded wrapper as scripts are at the end of the body
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
         const backgroundCanvas = document.getElementById('backgroundCanvas');
