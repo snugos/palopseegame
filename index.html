@@ -145,12 +145,11 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
-        // FIX: Use the user's provided Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyDKcumpOoSW3T3qdsNJWFFhje_CCOL-U10",
             authDomain: "palopsee-2d584.firebaseapp.com",
             projectId: "palopsee-2d584",
-            storageBucket: "palopsee-2d584.appspot.com", // Corrected storage bucket name
+            storageBucket: "palopsee-2d584.appspot.com",
             messagingSenderId: "516105281244",
             appId: "1:516105281244:web:79007aa6c2ae98deac9e19",
             measurementId: "G-E1F0FXCS56"
@@ -164,7 +163,6 @@
 
         let currentUser = null;
 
-        // FIX: Simplified authentication to only use anonymous sign-in.
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
@@ -207,7 +205,15 @@
             powerUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 } }).toDestination();
         }
         
-        function playJumpSound() { if (audioInitialized) jumpSynth.triggerAttackRelease('C5', '8n', Tone.now()); }
+        // FIX: Added a cooldown to prevent sound from being triggered too rapidly.
+        let jumpSoundCooldown = false;
+        function playJumpSound() { 
+            if (audioInitialized && !jumpSoundCooldown) {
+                jumpSynth.triggerAttackRelease('C5', '8n', Tone.now());
+                jumpSoundCooldown = true;
+                setTimeout(() => { jumpSoundCooldown = false; }, 100); // 100ms cooldown
+            }
+        }
         function playScoreSound() { if (audioInitialized) scoreSynth.triggerAttackRelease('A5', '16n', Tone.now()); }
         function playGameOverSound() { if (audioInitialized) gameOverSynth.triggerAttackRelease('16n', Tone.now()); }
         function playPowerUpSound() { if (audioInitialized) powerUpSynth.triggerAttackRelease('G5', '8n', Tone.now()); }
@@ -579,6 +585,9 @@
                     li.innerHTML = `<span class="player-name">${data.name}</span><span>${data.score}</span>`;
                     leaderboardList.appendChild(li);
                 });
+            }, (error) => {
+                console.error("Leaderboard snapshot error:", error);
+                showMessage("Could not load leaderboard. Check Firestore rules.", 5000);
             });
         }
 
@@ -624,6 +633,5 @@
 
         initGame(); 
     </script>
-    
 </body>
 </html>
