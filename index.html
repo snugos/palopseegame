@@ -156,7 +156,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
-        // FIX: Using the browser key provided by the user.
+        // UPDATED: Using the browser key for Firebase services
         const firebaseConfig = {
             apiKey: "AIzaSyDKcumpOoSW3T3qdsNJWFFhje_CCOL-U10",
             authDomain: "palopsee-2d584.firebaseapp.com",
@@ -166,6 +166,9 @@
             appId: "1:516105281244:web:79007aa6c2ae98deac9e19",
             measurementId: "G-E1F0FXCS56"
         };
+        
+        // NEW: Separate key specifically for the Gemini API
+        const geminiApiKey = "AIzaSyCmBgtVM3y9bHpf1Q3kGFieNi4wc5H41M8";
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -504,11 +507,11 @@
             }
         }
 
-        async function generateGeminiText(prompt) {
-            const apiKey = firebaseConfig.apiKey;
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        async function generateGeminiText(geminiPrompt) {
+            // UPDATED: Now uses the separate geminiApiKey
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
             const payload = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }]
+                contents: [{ role: "user", parts: [{ text: geminiPrompt }] }]
             };
 
             try {
@@ -552,8 +555,8 @@
 
             isGeneratingMessage = true;
             geminiGameOverMessage = 'Thinking of a witty remark...';
-            const prompt = `Generate a short, witty, encouraging, or funny message for a player who just got a score of ${score} in a space-themed endless runner game. The character's name is Palopsee. Be slightly sarcastic. Keep it under 20 words.`;
-            generateGeminiText(prompt).then(text => {
+            const geminiApiPrompt = `Generate a short, witty, encouraging, or funny message for a player who just got a score of ${score} in a space-themed endless runner game. The character's name is Palopsee. Be slightly sarcastic. Keep it under 20 words.`;
+            generateGeminiText(geminiApiPrompt).then(text => {
                 geminiGameOverMessage = text.replace(/"/g, '');
                 isGeneratingMessage = false;
             });
@@ -573,8 +576,8 @@
                     if (!name) name = "Anonymous";
                 }
                 
-                const prompt = `Generate a short, space-themed, boastful quote for a player named "${name}" who just set a high score of ${newScore}. The quote should be in the first person. Maximum 15 words.`;
-                const banter = await generateGeminiText(prompt);
+                const geminiBanterPrompt = `Generate a short, space-themed, boastful quote for a player named "${name}" who just set a high score of ${newScore}. The quote should be in the first person. Maximum 15 words.`;
+                const banter = await generateGeminiText(geminiBanterPrompt);
 
                 await setDoc(userDocRef, {
                     name: name,
