@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Palopsee's Space Run</title>
-    <!-- FIX: Updated the favicon to use the Palopsee character image -->
     <link rel="icon" href="https://palopsee.netlify.app/palopsee.png">
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        /* All CSS remains the same, but placing it in the head ensures styles are applied before content renders */
         body {
             font-family: 'Pixelify Sans', 'Inter', sans-serif; 
             margin: 0;
@@ -69,10 +67,10 @@
 
     <div id="messageBox"></div>
 
-    <!-- All scripts moved to the end of the body to ensure correct loading order -->
+    <!-- Scripts at the end of the body to ensure correct loading order -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <script src="https://unpkg.com/gifuct-js/dist/gifuct-js.js"></script>
+    <!-- REMOVED: gifuct-js library is no longer needed -->
     <script>
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
@@ -117,51 +115,30 @@
             palopsee: 'https://palopsee.netlify.app/palopsee.png',
             background: 'https://palopsee.netlify.app/background.png',
             alienShip: '/alien1.png',
-            powerUp: '/star1.png'
-        };
-        const gifUrls = {
-            asteroid: '/asteroid1.gif'
+            powerUp: '/star1.png',
+            // FIX: The GIF is now just another image to load
+            asteroid: 'https://palopsee.netlify.app/asteroid1.gif'
         };
 
+        // Simplified Asset Manager
         const assetManager = {
             assets: {}, totalAssets: 0, loadedAssets: 0, onAllAssetsLoaded: null,
-            loadAsset(name, src, isGif = false) {
+            loadAsset(name, src) {
                 this.totalAssets++;
-                if (isGif) {
-                    fetch(src)
-                        .then(resp => resp.arrayBuffer())
-                        .then(buff => {
-                            const gif = new GIF(buff); // GIF constructor is now guaranteed to exist
-                            const frames = gif.decompressFrames(true);
-                            const frameCanvases = frames.map(frame => {
-                                const canvas = document.createElement('canvas');
-                                canvas.width = frame.dims.width;
-                                canvas.height = frame.dims.height;
-                                const imageData = new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height);
-                                canvas.getContext('2d').putImageData(imageData, 0, 0);
-                                return { canvas, delay: frame.delay };
-                            });
-                            this.assets[name] = { 
-                                isGif: true, frames: frameCanvases, 
-                                width: frames[0].dims.width, height: frames[0].dims.height,
-                                frameIndex: 0, frameTime: 0
-                            };
-                            this.assetLoaded();
-                        }).catch(err => {
-                            console.error(`Failed to load or parse GIF: ${name}`, err);
-                            this.assetLoaded();
-                        });
-                } else {
-                    const asset = new Image();
-                    this.assets[name] = { image: asset, width: 0, height: 0, isGif: false };
-                    asset.onload = () => {
-                        this.assets[name].width = asset.naturalWidth;
-                        this.assets[name].height = asset.naturalHeight;
-                        this.assetLoaded();
-                    };
-                    asset.onerror = () => { this.assetLoaded(); };
-                    asset.src = src;
-                }
+                const asset = new Image();
+                // FIX: No special fetch logic. All assets, including GIFs, are loaded as Image objects.
+                // This avoids CORS issues related to fetch.
+                this.assets[name] = { image: asset, width: 0, height: 0 };
+                asset.onload = () => {
+                    this.assets[name].width = asset.naturalWidth;
+                    this.assets[name].height = asset.naturalHeight;
+                    this.assetLoaded();
+                };
+                asset.onerror = (err) => { 
+                    console.error(`Failed to load asset: ${name} at ${src}`, err);
+                    this.assetLoaded(); 
+                };
+                asset.src = src;
             },
             assetLoaded() {
                 this.loadedAssets++;
@@ -246,15 +223,13 @@
             }
 
             obstacles.push({ 
-                x: gameCanvasWidth, y: yPos, width: scaledDims.width, height: scaledDims.height, assetName: assetName,
+                x: gameCanvasWidth, y: yPos, width: scaledDims.width, height: scaledDims.height,
+                asset: assetInfo, // Store a reference to the asset info
                 draw() { 
-                    const asset = assetManager.get(this.assetName);
-                    if (!asset) return;
-                    if (asset.isGif) {
-                        const frame = asset.frames[asset.frameIndex];
-                        ctx.drawImage(frame.canvas, this.x, this.y, this.width, this.height);
-                    } else if (asset.image.complete) {
-                        ctx.drawImage(asset.image, this.x, this.y, this.width, this.height);
+                    // FIX: Draw the image directly from the stored reference.
+                    // The browser will handle GIF animation automatically.
+                    if (this.asset.image.complete) {
+                        ctx.drawImage(this.asset.image, this.x, this.y, this.width, this.height);
                     }
                 }, 
                 update() { this.x -= gameSpeed; } 
@@ -288,13 +263,12 @@
             }
 
             for (let i = obstacles.length - 1; i >= 0; i--) {
-                const obs = obstacles[i];
-                obs.update();
-                if ( !player.isInvincible && player.x < obs.x + obs.width && player.x + player.width > obs.x && player.y < obs.y + obs.height && player.y + player.height > obs.y) {
+                obstacles[i].update();
+                if ( !player.isInvincible && player.x < obstacles[i].x + obstacles[i].width && player.x + player.width > obstacles[i].x && player.y < obstacles[i].y + obstacles[i].height && player.y + player.height > obstacles[i].y) {
                     setGameOver();
                     return; 
                 }
-                if (obs.x + obs.width < 0) {
+                if (obstacles[i].x + obstacles[i].width < 0) {
                     obstacles.splice(i, 1);
                     score++;
                     if (score > 0 && score % scoreMilestoneInterval === 0 && score !== previousScoreForSound) {
@@ -397,32 +371,13 @@
             messageBox.style.display = 'none';
         }
 
-        function updateGifAnimations(deltaTime) {
-            for (const key in assetManager.assets) {
-                const asset = assetManager.assets[key];
-                if (asset.isGif && asset.frames.length > 0) {
-                    asset.frameTime += deltaTime;
-                    const currentFrameInfo = asset.frames[asset.frameIndex];
-                    if (asset.frameTime >= currentFrameInfo.delay) {
-                        asset.frameIndex = (asset.frameIndex + 1) % asset.frames.length;
-                        asset.frameTime = 0;
-                    }
-                }
-            }
-        }
-        
-        function gameLoop(currentTime) {
+        function gameLoop() {
             animationFrameId = requestAnimationFrame(gameLoop);
-            if (!lastFrameTime) lastFrameTime = currentTime;
-            const deltaTime = currentTime - lastFrameTime;
-            lastFrameTime = currentTime;
 
             backgroundOffsetX -= gameSpeed * (gameStarted && !gameOver ? 1 : 0);
             drawScrollingFullScreenBackground(); 
             ctx.clearRect(0, 0, gameCanvasWidth, gameCanvasHeight); 
             
-            updateGifAnimations(deltaTime);
-
             if (gameStarted && !gameOver) {
                 player.update();
                 handleObstacles(); 
@@ -521,8 +476,8 @@
             if (savedHighScore) highScore = parseInt(savedHighScore, 10);
 
             assetManager.onAllAssetsLoaded = assetsReadyCallback;
-            Object.keys(imageUrls).forEach(name => assetManager.loadAsset(name, imageUrls[name], false));
-            Object.keys(gifUrls).forEach(name => assetManager.loadAsset(name, gifUrls[name], true));
+            // FIX: Load all assets, including GIFs, through the same simplified function.
+            Object.keys(imageUrls).forEach(name => assetManager.loadAsset(name, imageUrls[name]));
         }
 
         initGame(); 
