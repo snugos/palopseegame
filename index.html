@@ -37,7 +37,6 @@
             border-radius: 4px; 
             cursor: pointer;
         }
-        /* UPDATED: Black & White UI Styles */
         #messageBox, #leaderboardButton {
             position: fixed;
             left: 50%;
@@ -643,9 +642,15 @@
             }
 
             if (JSON.stringify(userInputSequence) === JSON.stringify(cheatCode)) {
-                cheatActive = true;
-                player.isInvincible = true;
-                showMessage('Cheat Activated: Invincibility!', 5000);
+                if (cheatActive) {
+                    cheatActive = false;
+                    player.isInvincible = false;
+                    showMessage('Cheat Deactivated!', 5000);
+                } else {
+                    cheatActive = true;
+                    player.isInvincible = true;
+                    showMessage('Cheat Activated: Invincibility!', 5000);
+                }
                 userInputSequence = [];
             }
         });
