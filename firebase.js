@@ -6,6 +6,7 @@
 
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+// FIX: Corrected import paths to be relative to the current file.
 import { geminiApiKey } from './config.js';
 import { uiElements, showMessage } from './ui.js';
 
