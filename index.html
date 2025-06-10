@@ -6,8 +6,8 @@
     <title>Palopsee's Space Run</title>
     <link rel="icon" href="https://palopsee.netlify.app/palopsee.png">
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Link to the external CSS file -->
-    <link rel="stylesheet" href="style.css">
+    <!-- FIX: Using a relative path for the CSS file -->
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
@@ -38,19 +38,19 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+        // FIX: Using a relative path for the config import
         import { firebaseConfig } from './js/config.js';
         // Initialize Firebase
         initializeApp(firebaseConfig);
     </script>
     
     <!-- Game Scripts -->
-    <!-- The main.js script is a module and will handle importing other JS files -->
-    <script type="module" src="js/main.js"></script>
+    <!-- FIX: Using a relative path for the main game script -->
+    <script type="module" src="./js/main.js"></script>
 </body>
 </html>
