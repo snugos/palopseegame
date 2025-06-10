@@ -1,0 +1,144 @@
+/* General Body Styles */
+body {
+    font-family: 'Pixelify Sans', 'Inter', sans-serif; 
+    margin: 0;
+    background-color: #ffffff; 
+    color: #333333; 
+    /* Prevents pull-to-refresh and other scroll-based browser actions */
+    overscroll-behavior-y: contain; 
+    overflow: hidden; 
+    height: 100vh; 
+    width: 100vw;
+}
+
+/* Canvas Styling */
+#backgroundCanvas, #gameCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%; 
+    height: 100%;
+}
+#backgroundCanvas { z-index: -1; }
+/* Disable touch actions like pinch-zoom on the game canvas */
+#gameCanvas { z-index: 0; touch-action: none; }
+
+/* Header Link Styling */
+#headerLinkContainer {
+    position: fixed; 
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10; 
+}
+
+#headerPalopseeCanvas {
+    border-radius: 4px; 
+    cursor: pointer;
+}
+
+/* UI Popups and Buttons */
+#messageBox, #leaderboardButton {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #000000; 
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid #FFFFFF;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 1000; 
+    font-size: 16px;
+}
+
+#messageBox { 
+    top: 80px; 
+    display: none; 
+}
+
+#leaderboardButton { 
+    bottom: 20px; 
+    cursor: pointer; 
+}
+
+/* Leaderboard Modal Styling */
+#leaderboardModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: 2000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+#leaderboardContent {
+    background-color: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    text-align: center;
+    border: 2px solid #000;
+}
+
+#leaderboardContent h2 {
+    margin-top: 0;
+    font-size: 24px;
+    color: #000;
+}
+
+#leaderboardList {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+    max-height: 300px;
+    overflow-y: auto;
+    color: #333;
+}
+
+#leaderboardList li {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px 12px;
+    border-bottom: 1px solid #DDDDDD;
+    text-align: left;
+}
+
+#leaderboardList li .score-line {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+#leaderboardList .player-name {
+    font-weight: 600;
+}
+
+#leaderboardList .banter {
+    font-style: italic;
+    font-size: 12px;
+    color: #555;
+    margin-top: 4px;
+}
+
+ #closeLeaderboard {
+    margin-top: 16px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background-color: #333333;
+    color: white;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.2s;
+}
+
+#closeLeaderboard:hover {
+    background-color: #000000;
+}
