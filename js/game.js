@@ -188,17 +188,15 @@ function createPowerUp() {
     if (!assetInfo?.width) return;
 
     const scaledDims = getScaledDimensions('powerUp', POWERUP_SCALE_HEIGHT);
-    const verticalCenter = uiElements.gameCanvas.height / 2;
-    const yPos = verticalCenter - scaledDims.height / 2 + (Math.random() * (player.height * 2) - player.height);
+    
+    // FIX: Set the star's Y position to be vertically centered with the player's resting position.
+    const yPos = player.restingY + (player.height / 2) - (scaledDims.height / 2);
     
     const pUp = {
         x: uiElements.gameCanvas.width, y: yPos, width: scaledDims.width, height: scaledDims.height, image: assetInfo.image,
         draw() { if (this.image.complete) uiElements.ctx.drawImage(this.image, this.x, this.y, this.width, this.height); },
         update(currentSpeed) { this.x -= currentSpeed; }
     };
-    // Ensure power-up is within bounds
-    if (pUp.y < 20) pUp.y = 20;
-    if (pUp.y + pUp.height > uiElements.gameCanvas.height - 20) pUp.y = uiElements.gameCanvas.height - 20 - pUp.height;
     powerUps.push(pUp);
 }
 
@@ -342,4 +340,3 @@ function drawStartScreen(ctx) {
     ctx.fillStyle = '#000000';
     ctx.fillText(promptText, width / 2, height - 60);
 }
-
