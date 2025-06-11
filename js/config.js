@@ -6,7 +6,7 @@
 
 // Firebase Configuration
 export const firebaseConfig = {
-    apiKey: "AIzaSyDKcumpOoSW3T3qdsNJWFFhje_CCOL-U10",
+    apiKey: "AIzaSyDKcumpOoSWT3qdsNJWFFhje_CCOL-U10",
     authDomain: "palopsee-2d584.firebaseapp.com",
     projectId: "palopsee-2d584",
     storageBucket: "palopsee-2d584.appspot.com",
@@ -28,15 +28,15 @@ export const imageUrls = {
 };
 
 // Sizing and Scaling Constants
-// FIX: Increased player size from 48 to 52
 export const PLAYER_SCALE_HEIGHT = 52;
 export const POWERUP_SCALE_HEIGHT = 32;
 export const HEADER_ICON_SIZE = 40;
 export const BACKGROUND_TILE_WIDTH = 200;
 export const BACKGROUND_TILE_HEIGHT = 150;
 
-export const ASTEROID_SCALE_HEIGHT = 38; 
-export const ALIEN_SCALE_HEIGHT = 52;    
+// FIX: Adjusted obstacle sizes
+export const ASTEROID_SCALE_HEIGHT = 34; // Was 38
+export const ALIEN_SCALE_HEIGHT = 58;    // Was 52
 
 // Gameplay Constants
 export const INITIAL_GAME_SPEED = 6;
