@@ -159,7 +159,6 @@ function createObstacle() {
     obstacles.push({ 
         x: uiElements.gameCanvas.width, y: yPos, width: scaledDims.width, height: scaledDims.height,
         asset: assetInfo,
-        // FIX: Add a flag to identify the obstacle type for hitbox adjustments.
         isAsteroid: isAsteroid,
         draw() { 
             if (this.asset.image.complete) {
@@ -185,6 +184,44 @@ function createPowerUp() {
     powerUps.push(pUp);
 }
 
+// New function for pixel-perfect collision detection.
+function checkPixelCollision(player, obstacle) {
+    const playerAsset = assetManager.get('palopsee');
+    const obstacleAsset = obstacle.asset;
+
+    if (!playerAsset.hitboxMap || !obstacleAsset.hitboxMap) {
+        // Fallback to simple box collision if hitbox maps are not ready.
+        return (
+            player.x < obstacle.x + obstacle.width &&
+            player.x + player.width > obstacle.x &&
+            player.y < obstacle.y + obstacle.height &&
+            player.y + player.height > obstacle.y
+        );
+    }
+    
+    // Determine the overlapping area to check for collisions.
+    const xStart = Math.max(player.x, obstacle.x);
+    const xEnd = Math.min(player.x + player.width, obstacle.x + obstacle.width);
+    const yStart = Math.max(player.y, obstacle.y);
+    const yEnd = Math.min(player.y + player.height, obstacle.y + obstacle.height);
+
+    for (let y = yStart; y < yEnd; y++) {
+        for (let x = xStart; x < xEnd; x++) {
+            // Convert world coordinates to local image coordinates.
+            const playerImgX = Math.floor(((x - player.x) / player.width) * playerAsset.width);
+            const playerImgY = Math.floor(((y - player.y) / player.height) * playerAsset.height);
+            const obsImgX = Math.floor(((x - obstacle.x) / obstacle.width) * obstacleAsset.width);
+            const obsImgY = Math.floor(((y - obstacle.y) / obstacle.height) * obstacleAsset.height);
+            
+            // Check if both pixels are solid (not transparent).
+            if (playerAsset.hitboxMap[playerImgY]?.[playerImgX] && obstacleAsset.hitboxMap[obsImgY]?.[obsImgX]) {
+                return true; // Collision detected.
+            }
+        }
+    }
+    return false; // No collision.
+}
+
 function handleObstacles(currentSpeed) {
     const spawnMinDistance = uiElements.gameCanvas.width * 0.4 + currentSpeed * 10; 
     const spawnRandomDistance = uiElements.gameCanvas.width * 0.3;
@@ -197,22 +234,8 @@ function handleObstacles(currentSpeed) {
         const obs = obstacles[i];
         obs.update(currentSpeed);
         
-        // FIX: Adjust hitbox for asteroids to be more forgiving.
-        let hitbox = { x: obs.x, y: obs.y, width: obs.width, height: obs.height };
-        if (obs.isAsteroid) {
-            const padding = 0.15; // 15% padding on each side, making the hitbox 70% of the original size.
-            hitbox.x = obs.x + obs.width * padding;
-            hitbox.y = obs.y + obs.height * padding;
-            hitbox.width = obs.width * (1 - 2 * padding);
-            hitbox.height = obs.height * (1 - 2 * padding);
-        }
-
-        // Use the adjusted hitbox for collision detection.
-        if (!player.isInvincible && 
-            player.x < hitbox.x + hitbox.width && 
-            player.x + player.width > hitbox.x && 
-            player.y < hitbox.y + hitbox.height && 
-            player.y + player.height > hitbox.y) {
+        // Use the new pixel-perfect collision detection.
+        if (!player.isInvincible && checkPixelCollision(player, obs)) {
             setGameOver();
             return; 
         }
