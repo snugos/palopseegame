@@ -22,7 +22,7 @@ import { assetManager, getScaledDimensions } from './assets.js';
 import { playJumpSound, playScoreSound, playGameOverSound, playPowerUpSound } from './audio.js';
 import { particles, createParticles, handleParticles } from './particles.js';
 import { uiElements, showMessage } from './ui.js';
-import { addScore } from './leaderboard.js';
+import { addScore, getScores } from './leaderboard.js';
 
 // --- GAME STATE & ENTITIES ---
 
@@ -115,20 +115,17 @@ function setGameOver() {
     player.isInvincible = false;
     createParticles(player.x + player.width / 2, player.y + player.height / 2, 30, ['#333333']);
 
-    const currentTopScores = JSON.parse(localStorage.getItem('palopseeLocalLeaderboard') || '[]');
-    const lowestTopScore = currentTopScores.length < 10 ? 0 : currentTopScores[currentTopScores.length - 1].score;
+    const topScores = getScores();
+    const lowestTopScore = topScores.length < 10 ? 0 : topScores[topScores.length - 1];
 
     if (gameState.score > gameState.highScore) {
         gameState.highScore = gameState.score;
         localStorage.setItem(LOCAL_HIGH_SCORE_KEY, gameState.highScore);
     }
     
-    if(gameState.score > 0 && gameState.score > lowestTopScore) {
-        const name = prompt("New leaderboard score! Enter your name:", "Player");
-        if(name) {
-            addScore(name, gameState.score);
-            showMessage("Your score was added to the local leaderboard!");
-        }
+    if (gameState.score > 0 && gameState.score > lowestTopScore) {
+        addScore(gameState.score);
+        showMessage("New top score added to your leaderboard!");
     }
 
     playGameOverSound(); 
@@ -184,7 +181,6 @@ function createPowerUp() {
     powerUps.push(pUp);
 }
 
-// New function for pixel-perfect collision detection.
 function checkPixelCollision(player, obstacle) {
     const playerAsset = assetManager.get('palopsee');
     const obstacleAsset = obstacle.asset;
