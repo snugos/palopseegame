@@ -37,7 +37,7 @@ export const gameState = {
     animationFrameId: null,
     geminiMessage: '',
     isGeneratingMessage: false,
-    // Power-up spawning state
+    cheatActive: false,
     nextPowerUpPatternBase: 0,
     nextPowerUpIndex: 0
 };
@@ -53,9 +53,8 @@ export const player = {
         const palopseeAsset = assetManager.get('palopsee');
         if (!palopseeAsset?.image.complete) return;
         
-        // Blink when invincible
         if (this.isInvincible && this.invincibilityFrames++ % 10 < 5) {
-            // Render nothing to create a "blink" effect
+            // Blinking effect
         } else {
             uiElements.ctx.drawImage(palopseeAsset.image, this.x, this.y, this.width, this.height);
         }
@@ -73,7 +72,6 @@ export const player = {
             this.y += this.dy;
             this.dy += this.gravity;
         }
-        // Land on the resting position
         if (this.y >= this.restingY && this.dy > 0) {
             this.y = this.restingY;
             this.isJumping = false;
@@ -87,9 +85,6 @@ let powerUps = [];
 
 // --- GAME LIFECYCLE FUNCTIONS ---
 
-/**
- * Starts the game.
- */
 export function startGame() {
     gameState.started = true;
     gameState.score = 0;
@@ -97,9 +92,6 @@ export function startGame() {
     player.jump();
 }
 
-/**
- * Resets the game to its initial state.
- */
 export function resetGame() {
     gameState.score = 0;
     gameState.speed = INITIAL_GAME_SPEED;
@@ -107,6 +99,7 @@ export function resetGame() {
     gameState.started = false;
     gameState.geminiMessage = '';
     gameState.isGeneratingMessage = false;
+    player.isInvincible = gameState.cheatActive;
     gameState.nextPowerUpPatternBase = 0;
     gameState.nextPowerUpIndex = 0;
 
@@ -114,15 +107,11 @@ export function resetGame() {
     powerUps = [];
     player.dy = 0;
     player.isJumping = false;
-    player.isInvincible = false;
     player.y = player.restingY;
     
     uiElements.messageBox.style.display = 'none';
 }
 
-/**
- * Ends the game, calculates high scores, and displays the game over screen.
- */
 async function setGameOver() {
     if (gameState.over) return;
     gameState.over = true;
@@ -161,14 +150,12 @@ function createObstacle() {
     let yPos;
 
     if (isAsteroid) {
-        // Asteroids can appear at various heights around the center
         const verticalCenter = uiElements.gameCanvas.height / 2;
-        yPos = verticalCenter - scaledDims.height / 2 + (Math.random() * player.height - player.height / 2);
+        yPos = verticalCenter + (Math.random() * player.height * 0.5);
     } else { 
-        // Alien ships fly above the player
-        const alienShipClearance = 10;
+        const alienShipClearance = 20;
         yPos = player.restingY - alienShipClearance - scaledDims.height;
-        if (yPos < 10) yPos = 10; // Ensure it doesn't go off-screen
+        if (yPos < 10) yPos = 10;
     }
 
     obstacles.push({ 
@@ -188,8 +175,6 @@ function createPowerUp() {
     if (!assetInfo?.width) return;
 
     const scaledDims = getScaledDimensions('powerUp', POWERUP_SCALE_HEIGHT);
-    
-    // FIX: Set the star's Y position to be vertically centered with the player's resting position.
     const yPos = player.restingY + (player.height / 2) - (scaledDims.height / 2);
     
     const pUp = {
@@ -211,30 +196,25 @@ function handleObstacles(currentSpeed) {
     for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].update(currentSpeed);
         
-        // Collision detection
         if (!player.isInvincible && player.x < obstacles[i].x + obstacles[i].width && player.x + player.width > obstacles[i].x && player.y < obstacles[i].y + obstacles[i].height && player.y + player.height > obstacles[i].y) {
             setGameOver();
             return; 
         }
 
-        // Remove off-screen obstacles and increase score
         if (obstacles[i].x + obstacles[i].width < 0) {
             obstacles.splice(i, 1);
             gameState.score++;
-            if(gameState.score % 10 === 0) playScoreSound(); // Sound every 10 points
+            if(gameState.score % 10 === 0) playScoreSound();
         }
     }
 }
 
 function handlePowerUps(currentSpeed) {
-    // Determine the next score to spawn a power-up
     const nextSpawnScore = POWERUP_SPAWN_SCORES[gameState.nextPowerUpIndex] + gameState.nextPowerUpPatternBase;
 
     if (powerUps.length === 0 && gameState.score >= nextSpawnScore) {
         createPowerUp();
-        // Move to the next spawn score in the pattern
         gameState.nextPowerUpIndex++;
-        // If pattern is complete, reset it for the next interval
         if (gameState.nextPowerUpIndex >= POWERUP_SPAWN_SCORES.length) {
             gameState.nextPowerUpIndex = 0;
             gameState.nextPowerUpPatternBase += POWERUP_PATTERN_INTERVAL;
@@ -245,7 +225,6 @@ function handlePowerUps(currentSpeed) {
         const pUp = powerUps[i];
         pUp.update(currentSpeed);
 
-        // Collision detection
         if (player.x < pUp.x + pUp.width && player.x + player.width > pUp.x && player.y < pUp.y + pUp.height && player.y + player.height > pUp.y) {
             player.isInvincible = true;
             player.invincibilityFrames = 0; 
@@ -253,10 +232,12 @@ function handlePowerUps(currentSpeed) {
             createParticles(pUp.x + pUp.width / 2, pUp.y + pUp.height / 2, 20, ['#FFFFFF', '#333333']);
             powerUps.splice(i, 1); 
             
-            // Invincibility wears off after 5 seconds
+            // This timeout ensures invincibility from the star only lasts 5 seconds
+            // and does not interfere with the permanent invincibility from the cheat code.
             setTimeout(() => { 
-                // Only turn off if a new power-up hasn't been collected
-                if(player.invincibilityFrames > 300) player.isInvincible = false;
+                if (!gameState.cheatActive) {
+                    player.isInvincible = false;
+                }
             }, 5000); 
         }
         if (pUp.x + pUp.width < 0) powerUps.splice(i, 1);
@@ -268,16 +249,14 @@ function handlePowerUps(currentSpeed) {
 
 export function gameLoop() {
     gameState.animationFrameId = requestAnimationFrame(gameLoop);
-    const { ctx, bgCtx, backgroundCanvas } = uiElements;
+    const { ctx } = uiElements;
 
-    // Update and draw background
     if (gameState.started && !gameState.over) {
-        uiElements.backgroundOffsetX -= gameState.speed * 0.5; // Slower scroll for parallax
+        uiElements.backgroundOffsetX -= gameState.speed * 0.5;
     }
     uiElements.drawScrollingFullScreenBackground(); 
     ctx.clearRect(0, 0, uiElements.gameCanvas.width, uiElements.gameCanvas.height); 
     
-    // Calculate current speed based on T-Rex game model
     const speedBonus = Math.floor(gameState.score / 100) * MILESTONE_SPEED_BONUS;
     const currentSpeed = Math.min(MAX_GAME_SPEED, gameState.speed + speedBonus);
 
@@ -293,14 +272,12 @@ export function gameLoop() {
     powerUps.forEach(pUp => pUp.draw());
     handleParticles(); 
 
-    // Draw UI Text (Score, etc.)
     ctx.font = `16px ${GAME_FONT}`; 
     ctx.fillStyle = '#333333'; 
     ctx.textAlign = 'left';
     ctx.fillText(`Score: ${gameState.score}`, 10, 25);
     ctx.fillText(`Local High Score: ${gameState.highScore}`, 10, 50);
 
-    // Draw Game Over or Start Screen
     if (gameState.over) {
         drawGameOverScreen(ctx);
     } else if (!gameState.started && gameState.assetsReady) {
