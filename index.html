@@ -4,31 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Palopsee's Space Run</title>
-    <link rel="icon" href="https://palopsee.netlify.app/palopsee.png">
+    <link rel="icon" href="http://snugos.github.io/palopseegame/palopsee.png">
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- FIX: Using a relative path for the CSS file -->
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
-    <!-- Background canvas for scrolling pattern -->
     <canvas id="backgroundCanvas"></canvas>
 
-    <!-- Header link and icon -->
     <div id="headerLinkContainer">
         <a id="headerLink" href="#" target="_blank" rel="noopener noreferrer">
             <canvas id="headerPalopseeCanvas"></canvas>
         </a>
     </div>
 
-    <!-- Main game canvas -->
     <canvas id="gameCanvas"></canvas> 
 
-    <!-- UI Elements -->
     <div id="messageBox"></div>
     <button id="leaderboardButton">Leaderboard</button>
 
-    <!-- Leaderboard Modal -->
     <div id="leaderboardModal">
         <div id="leaderboardContent">
             <h2>Top Scores</h2>
@@ -37,20 +31,8 @@
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-        // FIX: Using a relative path for the config import
-        import { firebaseConfig } from './js/config.js';
-        // Initialize Firebase
-        initializeApp(firebaseConfig);
-    </script>
-    
-    <!-- Game Scripts -->
-    <!-- FIX: Using a relative path for the main game script -->
     <script type="module" src="./js/main.js"></script>
 </body>
 </html>
