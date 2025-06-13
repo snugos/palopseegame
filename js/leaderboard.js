@@ -6,11 +6,11 @@
 import { uiElements } from './ui.js';
 
 // The key used to store leaderboard data in localStorage.
-const LEADERBOARD_KEY = 'palopseeLocalLeaderboard';
+const LEADERBOARD_KEY = 'palopseeTopScores';
 
 /**
  * Retrieves the list of scores from localStorage.
- * @returns {Array} An array of score objects, sorted from highest to lowest.
+ * @returns {Array<number>} An array of scores, sorted from highest to lowest.
  */
 export function getScores() {
     const scoresJSON = localStorage.getItem(LEADERBOARD_KEY);
@@ -20,7 +20,7 @@ export function getScores() {
     try {
         const scores = JSON.parse(scoresJSON);
         // Ensure scores are sorted correctly every time they are retrieved.
-        return scores.sort((a, b) => b.score - a.score);
+        return scores.sort((a, b) => b - a);
     } catch (e) {
         console.error("Error parsing leaderboard scores from localStorage", e);
         return [];
@@ -29,15 +29,14 @@ export function getScores() {
 
 /**
  * Adds a new score to the leaderboard.
- * @param {string} name - The player's name.
  * @param {number} score - The player's score.
  */
-export function addScore(name, score) {
+export function addScore(score) {
     const scores = getScores();
-    scores.push({ name, score });
+    scores.push(score);
     
     // Sort scores and keep only the top 10.
-    const sortedScores = scores.sort((a, b) => b.score - a.score);
+    const sortedScores = scores.sort((a, b) => b - a);
     const topScores = sortedScores.slice(0, 10);
     
     localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(topScores));
@@ -56,10 +55,10 @@ export function displayLeaderboard() {
         return;
     }
 
-    scores.forEach(scoreEntry => {
+    scores.forEach((score, index) => {
         const li = document.createElement('li');
-        // We no longer have banter, so the structure is simpler.
-        li.innerHTML = `<div class="score-line"><span class="player-name">${scoreEntry.name}</span><span>${scoreEntry.score}</span></div>`;
+        // FIX: Display a ranked list of scores.
+        li.innerHTML = `<span class="rank">#${index + 1}</span><span class="score">${score}</span>`;
         list.appendChild(li);
     });
 }
