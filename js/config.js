@@ -34,9 +34,9 @@ export const HEADER_ICON_SIZE = 40;
 export const BACKGROUND_TILE_WIDTH = 200;
 export const BACKGROUND_TILE_HEIGHT = 150;
 
-// FIX: Adjusted obstacle sizes
-export const ASTEROID_SCALE_HEIGHT = 34; // Was 38
-export const ALIEN_SCALE_HEIGHT = 58;    // Was 52
+// FIX: Made the asteroids smaller
+export const ASTEROID_SCALE_HEIGHT = 30; // Was 34
+export const ALIEN_SCALE_HEIGHT = 58;
 
 // Gameplay Constants
 export const INITIAL_GAME_SPEED = 6;
