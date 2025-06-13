@@ -22,15 +22,23 @@ export const assetManager = {
     loadAsset(name, src) {
         this.totalAssets++;
         const asset = new Image();
-        this.assets[name] = { image: asset, width: 0, height: 0 };
+        this.assets[name] = { 
+            image: asset, 
+            width: 0, 
+            height: 0, 
+            // FIX: Add a property to store the hitbox map for pixel-perfect collision.
+            hitboxMap: null 
+        };
         asset.onload = () => {
             this.assets[name].width = asset.naturalWidth;
             this.assets[name].height = asset.naturalHeight;
+            // FIX: Generate the hitbox map after the image loads.
+            this.createHitboxMap(name);
             this.assetLoaded();
         };
         asset.onerror = (err) => { 
             console.error(`Failed to load asset: ${name} at ${src}`, err);
-            this.assetLoaded(); // Still count as "loaded" to not stall the game
+            this.assetLoaded(); 
         };
         asset.src = src;
     },
@@ -59,6 +67,38 @@ export const assetManager = {
      */
     get(name) { 
         return this.assets[name] || null;
+    },
+    
+    /**
+     * FIX: Creates a 2D array representing the opaque pixels of an image.
+     * This is used for more accurate collision detection.
+     * @param {string} name - The name of the asset to process.
+     */
+    createHitboxMap(name) {
+        const assetInfo = this.assets[name];
+        if (!assetInfo || !assetInfo.image.complete || assetInfo.width === 0) return;
+
+        // Create an off-screen canvas to draw the image and get its pixel data.
+        const canvas = document.createElement('canvas');
+        canvas.width = assetInfo.width;
+        canvas.height = assetInfo.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(assetInfo.image, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        const hitboxMap = [];
+
+        for (let y = 0; y < canvas.height; y++) {
+            hitboxMap[y] = [];
+            for (let x = 0; x < canvas.width; x++) {
+                // The alpha value is the 4th component of each pixel.
+                const alpha = data[(y * canvas.width + x) * 4 + 3];
+                // If alpha is greater than a threshold, consider it a solid pixel.
+                hitboxMap[y][x] = alpha > 128 ? 1 : 0;
+            }
+        }
+        assetInfo.hitboxMap = hitboxMap;
     }
 };
 
@@ -71,7 +111,6 @@ export const assetManager = {
 export function getScaledDimensions(assetName, baseHeight = PLAYER_SCALE_HEIGHT) {
     const assetInfo = assetManager.get(assetName);
     if (!assetInfo || !assetInfo.height) {
-        // Fallback to a square if asset info is not available
         return { width: baseHeight, height: baseHeight };
     }
     const aspectRatio = assetInfo.width / assetInfo.height;
