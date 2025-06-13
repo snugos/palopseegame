@@ -4,27 +4,14 @@
  * This includes game settings, asset URLs, and API keys.
  */
 
-// Firebase Configuration
-export const firebaseConfig = {
-    apiKey: "AIzaSyDKcumpOoSWT3qdsNJWFFhje_CCOL-U10",
-    authDomain: "palopsee-2d584.firebaseapp.com",
-    projectId: "palopsee-2d584",
-    storageBucket: "palopsee-2d584.appspot.com",
-    messagingSenderId: "516105281244",
-    appId: "1:516105281244:web:79007aa6c2ae98deac9e19",
-    measurementId: "G-E1F0FXCS56"
-};
-
-// Gemini API Key
-export const geminiApiKey = "AIzaSyCmBgtVM3y9bHpf1Q3kGFieNi4wc5H41M8";
-
 // Game Asset URLs
+// FIX: Updated all asset URLs to point to the new location.
 export const imageUrls = {
-    palopsee: 'https://palopsee.netlify.app/palopsee.png',
-    background: 'https://palopsee.netlify.app/background.png',
-    alienShip: 'https://palopsee.netlify.app/alien1.png',
-    powerUp: 'https://palopsee.netlify.app/star1.png',
-    asteroid: 'https://palopsee.netlify.app/asteroid1.gif'
+    palopsee: 'http://snugos.github.io/palopseegame/palopsee.png',
+    background: 'http://snugos.github.io/palopseegame/background.png',
+    alienShip: 'http://snugos.github.io/palopseegame/alien1.png',
+    powerUp: 'http://snugos.github.io/palopseegame/star1.png',
+    asteroid: 'http://snugos.github.io/palopseegame/asteroid1.gif'
 };
 
 // Sizing and Scaling Constants
@@ -34,9 +21,8 @@ export const HEADER_ICON_SIZE = 40;
 export const BACKGROUND_TILE_WIDTH = 200;
 export const BACKGROUND_TILE_HEIGHT = 150;
 
-// FIX: Made the asteroids smaller
-export const ASTEROID_SCALE_HEIGHT = 30; // Was 34
-export const ALIEN_SCALE_HEIGHT = 58;
+export const ASTEROID_SCALE_HEIGHT = 30;
+export const ALIEN_SCALE_HEIGHT = 58;    
 
 // Gameplay Constants
 export const INITIAL_GAME_SPEED = 6;
