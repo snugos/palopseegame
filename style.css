@@ -4,7 +4,6 @@ body {
     margin: 0;
     background-color: #ffffff; 
     color: #333333; 
-    /* Prevents pull-to-refresh and other scroll-based browser actions */
     overscroll-behavior-y: contain; 
     overflow: hidden; 
     height: 100vh; 
@@ -20,7 +19,6 @@ body {
     height: 100%;
 }
 #backgroundCanvas { z-index: -1; }
-/* Disable touch actions like pinch-zoom on the game canvas */
 #gameCanvas { z-index: 0; touch-action: none; }
 
 /* Header Link Styling */
@@ -104,29 +102,24 @@ body {
 
 #leaderboardList li {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    justify-content: space-between; /* Pushes rank and score to opposite ends */
     padding: 8px 12px;
     border-bottom: 1px solid #DDDDDD;
     text-align: left;
+    font-size: 18px; /* Slightly larger for readability */
 }
 
-#leaderboardList li .score-line {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-}
-
-#leaderboardList .player-name {
+#leaderboardList .rank {
     font-weight: 600;
+    color: #555;
+    margin-right: 20px; /* Space between rank and score */
 }
 
-#leaderboardList .banter {
-    font-style: italic;
-    font-size: 12px;
-    color: #555;
-    margin-top: 4px;
+#leaderboardList .score {
+    font-weight: 700;
+    color: #000;
 }
+
 
  #closeLeaderboard {
     margin-top: 16px;
