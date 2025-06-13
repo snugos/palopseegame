@@ -22,7 +22,7 @@ import { assetManager, getScaledDimensions } from './assets.js';
 import { playJumpSound, playScoreSound, playGameOverSound, playPowerUpSound } from './audio.js';
 import { particles, createParticles, handleParticles } from './particles.js';
 import { uiElements, showMessage } from './ui.js';
-import { submitScore, generateGeminiText } from './firebase.js';
+import { addScore } from './leaderboard.js';
 
 // --- GAME STATE & ENTITIES ---
 
@@ -35,8 +35,6 @@ export const gameState = {
     score: 0,
     highScore: 0,
     animationFrameId: null,
-    geminiMessage: '',
-    isGeneratingMessage: false,
     cheatActive: false,
     nextPowerUpPatternBase: 0,
     nextPowerUpIndex: 0
@@ -97,8 +95,6 @@ export function resetGame() {
     gameState.speed = INITIAL_GAME_SPEED;
     gameState.over = false;
     gameState.started = false;
-    gameState.geminiMessage = '';
-    gameState.isGeneratingMessage = false;
     player.isInvincible = gameState.cheatActive;
     gameState.nextPowerUpPatternBase = 0;
     gameState.nextPowerUpIndex = 0;
@@ -112,28 +108,30 @@ export function resetGame() {
     uiElements.messageBox.style.display = 'none';
 }
 
-async function setGameOver() {
+function setGameOver() {
     if (gameState.over) return;
     gameState.over = true;
     gameState.started = false;
     player.isInvincible = false;
     createParticles(player.x + player.width / 2, player.y + player.height / 2, 30, ['#333333']);
 
+    const currentTopScores = JSON.parse(localStorage.getItem('palopseeLocalLeaderboard') || '[]');
+    const lowestTopScore = currentTopScores.length < 10 ? 0 : currentTopScores[currentTopScores.length - 1].score;
+
     if (gameState.score > gameState.highScore) {
         gameState.highScore = gameState.score;
         localStorage.setItem(LOCAL_HIGH_SCORE_KEY, gameState.highScore);
-        await submitScore(gameState.score);
     }
-    playGameOverSound(); 
-
-    gameState.isGeneratingMessage = true;
-    gameState.geminiMessage = 'Thinking of a witty remark...';
-    const geminiPrompt = `Generate a short, witty, encouraging, or funny message for a player who just got a score of ${gameState.score} in a space-themed endless runner game. The character's name is Palopsee. Be slightly sarcastic. Keep it under 20 words.`;
     
-    generateGeminiText(geminiPrompt).then(text => {
-        gameState.geminiMessage = text.replace(/"/g, '');
-        gameState.isGeneratingMessage = false;
-    });
+    if(gameState.score > 0 && gameState.score > lowestTopScore) {
+        const name = prompt("New leaderboard score! Enter your name:", "Player");
+        if(name) {
+            addScore(name, gameState.score);
+            showMessage("Your score was added to the local leaderboard!");
+        }
+    }
+
+    playGameOverSound(); 
 }
 
 // --- ENTITY CREATION & MANAGEMENT ---
@@ -161,6 +159,8 @@ function createObstacle() {
     obstacles.push({ 
         x: uiElements.gameCanvas.width, y: yPos, width: scaledDims.width, height: scaledDims.height,
         asset: assetInfo,
+        // FIX: Add a flag to identify the obstacle type for hitbox adjustments.
+        isAsteroid: isAsteroid,
         draw() { 
             if (this.asset.image.complete) {
                 uiElements.ctx.drawImage(this.asset.image, this.x, this.y, this.width, this.height);
@@ -194,14 +194,30 @@ function handleObstacles(currentSpeed) {
     }
 
     for (let i = obstacles.length - 1; i >= 0; i--) {
-        obstacles[i].update(currentSpeed);
+        const obs = obstacles[i];
+        obs.update(currentSpeed);
         
-        if (!player.isInvincible && player.x < obstacles[i].x + obstacles[i].width && player.x + player.width > obstacles[i].x && player.y < obstacles[i].y + obstacles[i].height && player.y + player.height > obstacles[i].y) {
+        // FIX: Adjust hitbox for asteroids to be more forgiving.
+        let hitbox = { x: obs.x, y: obs.y, width: obs.width, height: obs.height };
+        if (obs.isAsteroid) {
+            const padding = 0.15; // 15% padding on each side, making the hitbox 70% of the original size.
+            hitbox.x = obs.x + obs.width * padding;
+            hitbox.y = obs.y + obs.height * padding;
+            hitbox.width = obs.width * (1 - 2 * padding);
+            hitbox.height = obs.height * (1 - 2 * padding);
+        }
+
+        // Use the adjusted hitbox for collision detection.
+        if (!player.isInvincible && 
+            player.x < hitbox.x + hitbox.width && 
+            player.x + player.width > hitbox.x && 
+            player.y < hitbox.y + hitbox.height && 
+            player.y + player.height > hitbox.y) {
             setGameOver();
             return; 
         }
 
-        if (obstacles[i].x + obstacles[i].width < 0) {
+        if (obs.x + obs.width < 0) {
             obstacles.splice(i, 1);
             gameState.score++;
             if(gameState.score % 10 === 0) playScoreSound();
@@ -232,8 +248,6 @@ function handlePowerUps(currentSpeed) {
             createParticles(pUp.x + pUp.width / 2, pUp.y + pUp.height / 2, 20, ['#FFFFFF', '#333333']);
             powerUps.splice(i, 1); 
             
-            // This timeout ensures invincibility from the star only lasts 5 seconds
-            // and does not interfere with the permanent invincibility from the cheat code.
             setTimeout(() => { 
                 if (!gameState.cheatActive) {
                     player.isInvincible = false;
@@ -298,9 +312,6 @@ function drawGameOverScreen(ctx) {
     ctx.font = `20px ${GAME_FONT}`; 
     ctx.fillText(`Score: ${gameState.score}`, width / 2, height / 2 - 20);
     ctx.fillText(`High Score: ${gameState.highScore}`, width / 2, height / 2 + 10);
-    
-    ctx.font = `italic 16px ${GAME_FONT}`;
-    ctx.fillText(gameState.geminiMessage, width / 2, height / 2 + 50);
     
     ctx.font = `16px ${GAME_FONT}`; 
     ctx.fillText('Tap or Press Space/Up to Restart', width / 2, height / 2 + 90);
